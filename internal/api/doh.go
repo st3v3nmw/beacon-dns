@@ -13,7 +13,7 @@ func queryDNS(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
-	qn := &dns.Question{
+	qn := &dns.Request{
 		Type: dns.QType(1), // default to A
 	}
 
