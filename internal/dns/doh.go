@@ -13,10 +13,9 @@ type QType uint16
 func (f *QType) UnmarshalJSON(data []byte) error {
 	strVal := strings.Trim(string(data), "\"")
 	intVal, err := strconv.Atoi(strVal)
-	if err != nil {
-		// the string representation was provided, e.g. A, AAAA
-		fmt.Println("err", err)
-		intVal, ok := dnslib.StringToType[strVal]
+	if err == nil {
+		// confirm that the type exists
+		_, ok := dnslib.TypeToString[uint16(intVal)]
 		if !ok {
 			return fmt.Errorf("unknown type provided")
 		}
@@ -25,14 +24,15 @@ func (f *QType) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	// confirm that the type exists
-	_, ok := dnslib.TypeToString[uint16(intVal)]
+	// the string representation was provided, e.g. A, AAAA
+	uint16Val, ok := dnslib.StringToType[strVal]
 	if !ok {
 		return fmt.Errorf("unknown type provided")
 	}
 
-	*f = QType(intVal)
+	*f = QType(uint16Val)
 	return nil
+
 }
 
 type Question struct {
