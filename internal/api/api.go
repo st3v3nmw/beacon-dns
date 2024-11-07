@@ -35,11 +35,8 @@ func New(addr string) {
 
 	e.GET("/", home)
 
-	e.POST("/schedules", createSchedule)
-	e.GET("/schedules", getSchedules)
-
-	e.POST("/timings", createTiming)
-	e.GET("/timings", getTimings)
+	e.GET("/:filter/dns-query", queryDNS)
+	e.POST("/:filter/dns-query", queryDNS)
 
 	e.POST("/lists", createList)
 	e.GET("/lists", getLists)

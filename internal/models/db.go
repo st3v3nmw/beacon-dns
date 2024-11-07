@@ -20,5 +20,5 @@ func NewDB(connString string) error {
 }
 
 func MigrateDB() error {
-	return DB.AutoMigrate(&Schedule{}, &Timing{}, &List{}, &ListEntry{})
+	return DB.AutoMigrate(&List{}, &ListEntry{})
 }

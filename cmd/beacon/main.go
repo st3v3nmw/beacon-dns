@@ -37,17 +37,17 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// DNS service
+	// UDP DNS service
 	dnsPort, err := mustGetEnv("DNS_PORT")
 	if err != nil {
 		log.Fatal(err)
 	}
 	dnsAddr := fmt.Sprintf(":%s", dnsPort)
 
-	dns.New(dnsAddr)
+	dns.NewUDPServer(dnsAddr)
 
 	go func() {
-		if err := dns.Start(); err != nil {
+		if err := dns.StartUDPServer(); err != nil {
 			log.Fatalf("dns service error: %v\n", err)
 		}
 	}()

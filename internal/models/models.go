@@ -20,28 +20,17 @@ const (
 type Category string
 
 const (
-	// advertising, marketing, trackers, analytics
-	CategoryAds Category = "ads"
-	// malware, phishing, exploits
-	CategoryMalware Category = "malware"
-	// social media
-	CategorySocialMedia Category = "social-media"
-	// video & media platforms
-	CategoryStreaming Category = "streaming"
-	// adult content
-	CategoryAdult Category = "adult"
-	// user-defined
-	CategoryCustom Category = "custom"
-)
-
-const (
-	Sunday    uint8 = 1 << 0
-	Monday    uint8 = 1 << 1
-	Tuesday   uint8 = 1 << 2
-	Wednesday uint8 = 1 << 3
-	Thursday  uint8 = 1 << 4
-	Friday    uint8 = 1 << 5
-	Saturday  uint8 = 1 << 6
+	// Default = ads + malware
+	CategoryAds            Category = "ads"             // ads, trackers
+	CategoryMalware        Category = "malware"         // malware, ransomware, phishing, cryptojacking
+	CategoryAdult          Category = "adult"           // adult content
+	CategoryDating         Category = "dating"          // dating
+	CategorySocialMedia    Category = "social-media"    // social media
+	CategoryVideoStreaming Category = "video-streaming" // video streaming platforms
+	CategoryGambling       Category = "gambling"        // gambling
+	CategoryGaming         Category = "gaming"          // gaming
+	CategoryPiracy         Category = "piracy"          // piracy, torrents
+	CategoryDrugs          Category = "drugs"           // drugs
 )
 
 type Creatable interface {
@@ -61,27 +50,6 @@ func (b *BaseModel) BeforeCreate(tx *gorm.DB) error {
 	}
 	b.ID = id
 	return nil
-}
-
-// Schedules
-
-type Schedule struct {
-	BaseModel
-	Name    string   `json:"name" validate:"required"`
-	Action  Action   `json:"action" validate:"required"`
-	Enabled bool     `json:"enabled" validate:"required"`
-	Timings []Timing `json:"timings"`
-	Lists   []List   `gorm:"many2many:schedule_lists;" json:"lists"`
-}
-
-// Timings
-
-type Timing struct {
-	BaseModel
-	Start      time.Duration `json:"start" validate:"required"` // time since midnight
-	End        time.Duration `json:"end" validate:"required"`   // time since midnight
-	Days       uint8         `json:"days" validate:"required"`
-	ScheduleID ulid.ULID     `json:"schedule_id" validate:"required"`
 }
 
 // Lists

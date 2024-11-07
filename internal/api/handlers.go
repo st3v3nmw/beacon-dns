@@ -70,26 +70,6 @@ func getHandler[T any](c echo.Context) error {
 	return c.JSON(http.StatusOK, vs)
 }
 
-// Schedules
-
-func createSchedule(c echo.Context) error {
-	return createHandler[*models.Schedule](c)
-}
-
-func getSchedules(c echo.Context) error {
-	return getHandler[models.Schedule](c)
-}
-
-// Timings
-
-func createTiming(c echo.Context) error {
-	return createHandler[*models.Timing](c)
-}
-
-func getTimings(c echo.Context) error {
-	return getHandler[models.Timing](c)
-}
-
 // Lists
 
 func createList(c echo.Context) error {
