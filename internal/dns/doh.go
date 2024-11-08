@@ -45,24 +45,49 @@ type Request struct {
 }
 
 type Response struct {
-	Status   int        `json:"Status"`
-	TC       bool       `json:"TC"`
-	RD       bool       `json:"RD"`
-	RA       bool       `json:"RA"`
-	AD       bool       `json:"AD"`
-	CD       bool       `json:"CD"`
-	Question []Question `json:"Question"`
-	Answer   []Answer   `json:"Answer"`
-	Comment  string     `json:"Comment,omitempty"`
-	// Traces   []string   `json:"Traces,omitempty"`
+	Status     int        `json:"Status"`
+	TC         bool       `json:"TC"`
+	RD         bool       `json:"RD"`
+	RA         bool       `json:"RA"`
+	AD         bool       `json:"AD"`
+	CD         bool       `json:"CD"`
+	Question   []Question `json:"Question"`
+	Answer     []Answer   `json:"Answer,omitempty"`
+	Authority  []Answer   `json:"Authority,omitempty"`
+	Additional []Answer   `json:"Additional,omitempty"`
+	Comment    string     `json:"Comment,omitempty"`
 }
 
 func responseFromMsg(m *dnslib.Msg) *Response {
 	qn := m.Question[0]
-	answer := make([]Answer, len(m.Answer))
-	for i, a := range m.Answer {
-		answer[i] = Answer{
+	answer := rrToAnswer(qn.Name, m.Answer)
+	authority := rrToAnswer(qn.Name, m.Ns)
+	additional := rrToAnswer(qn.Name, m.Extra)
+	question := []Question{
+		{
 			Name: qn.Name,
+			Type: QType(qn.Qtype),
+		},
+	}
+	return &Response{
+		Status:     m.Rcode,
+		TC:         m.Truncated,
+		RD:         m.RecursionDesired,
+		RA:         m.RecursionAvailable,
+		AD:         m.AuthenticatedData,
+		CD:         m.CheckingDisabled,
+		Question:   question,
+		Answer:     answer,
+		Authority:  authority,
+		Additional: additional,
+	}
+}
+
+func rrToAnswer(name string, rr []dnslib.RR) []Answer {
+	answer := make([]Answer, len(rr))
+	for i, a := range rr {
+		answer[i] = Answer{
+			Name: name,
 			Type: a.Header().Rrtype,
 			TTL:  a.Header().Ttl,
 		}
@@ -71,23 +96,7 @@ func responseFromMsg(m *dnslib.Msg) *Response {
 		rrStr := a.String()
 		answer[i].Data = strings.TrimLeft(rrStr, headerStr)
 	}
-
-	question := []Question{
-		{
-			Name: qn.Name,
-			Type: QType(qn.Qtype),
-		},
-	}
-	return &Response{
-		Status:   m.Rcode,
-		TC:       m.Truncated,
-		RD:       m.RecursionDesired,
-		RA:       m.RecursionAvailable,
-		AD:       m.AuthenticatedData,
-		CD:       m.CheckingDisabled,
-		Question: question,
-		Answer:   answer,
-	}
+	return answer
 }
 
 type Question struct {

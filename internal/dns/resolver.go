@@ -200,8 +200,6 @@ func resolve(r *dnslib.Msg) (*dnslib.Msg, error) {
 		// TODO: make sure we're not caching geo-specific results
 		m := cached.Copy()
 		m.Id = r.Id
-		fmt.Printf("got %s (%s) from the cache... %s\n", qn.Name, dnslib.TypeToString[qn.Qtype], key)
-		fmt.Println(Cache.Stats())
 		return m, nil
 	}
 
@@ -211,21 +209,25 @@ func resolve(r *dnslib.Msg) (*dnslib.Msg, error) {
 	}
 
 	maxUint32 := uint32(math.MaxUint32)
-	cacheTtl := maxUint32
-	for _, ans := range m.Answer {
+	cacheTtl := minAnswerTtl(maxUint32, m.Answer)
+	cacheTtl = minAnswerTtl(cacheTtl, m.Ns)
+	cacheTtl = minAnswerTtl(cacheTtl, m.Extra)
+	if cacheTtl > 30 && cacheTtl != maxUint32 {
+		Cache.Set(key, m, time.Duration(cacheTtl-15)*time.Second)
+		fmt.Println(cacheTtl)
+	}
+
+	return m, nil
+}
+
+func minAnswerTtl(cacheTtl uint32, rr []dnslib.RR) uint32 {
+	for _, ans := range rr {
 		ttl := ans.Header().Ttl
 		if ttl < cacheTtl {
 			cacheTtl = ttl
 		}
 	}
-
-	if cacheTtl > 30 && cacheTtl != maxUint32 {
-		Cache.Set(key, m, time.Duration(cacheTtl-15)*time.Second)
-
-		fmt.Printf("got %s (%s) from upstream, cached for %v\n", qn.Name, dnslib.TypeToString[qn.Qtype], time.Duration(cacheTtl-15)*time.Second)
-	}
-
-	return m, nil
+	return cacheTtl
 }
 
 func forwardToUpstream(r *dnslib.Msg) (*dnslib.Msg, error) {
