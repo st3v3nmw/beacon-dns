@@ -8,19 +8,34 @@ import (
 	"time"
 
 	"github.com/armon/go-radix"
+	"github.com/maypok86/otter"
 	dnslib "github.com/miekg/dns"
 	"github.com/st3v3nmw/beacon/internal/models"
 )
 
 var (
 	lists         map[string]*radix.Tree
+	Cache         otter.CacheWithVariableTTL[string, *dnslib.Msg]
 	defaultDNSTTL uint32 = 300
 )
 
+func NewCache() error {
+	var err error
+	Cache, err = otter.MustBuilder[string, *dnslib.Msg](1_048_576).
+		CollectStats().
+		WithVariableTTL().
+		Build()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 type Leaf struct {
-	List       string // list name
-	Action     string // allow or block
-	IsOverride bool
+	List       string `json:"list"`
+	Action     string `json:"action"`
+	IsOverride bool   `json:"is_override"`
 }
 
 type Filter struct {
@@ -96,7 +111,7 @@ func (f *Filter) Categories() []string {
 	return categories
 }
 
-func LoadLists() error {
+func LoadListsToMemory() error {
 	rows, err := models.DB.Query(`
 		SELECT l.name, l.category, e.domain, e.action, e.is_override
 		FROM lists l
@@ -125,7 +140,7 @@ func LoadLists() error {
 		key := reverseDomain(domain)
 
 		var leaves []Leaf
-		if val, found := tree.Get(key); found {
+		if val, ok := tree.Get(key); ok {
 			leaves = val.([]Leaf)
 		}
 		leaves = append(leaves, Leaf{

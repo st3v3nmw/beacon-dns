@@ -12,7 +12,10 @@ import (
 )
 
 func main() {
+	fmt.Println("Beacon DNS\n==========")
+
 	// Database
+	fmt.Println("Starting dqlite...")
 	dqliteDir, err := mustGetEnv("DQLITE_DIR")
 	if err != nil {
 		log.Fatal(err)
@@ -36,18 +39,27 @@ func main() {
 	}
 	defer models.DB.Close()
 
+	fmt.Println("Running migrations...")
 	err = models.MigrateDB()
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	fmt.Println("Syncing blocklists with upstream sources...")
+	err = models.SyncBlockListsWithSources()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// Load lists
-	err = dns.LoadLists()
+	fmt.Println("Loading blocklists into memory...")
+	err = dns.LoadListsToMemory()
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// Cache
+	fmt.Println("Setting up cache...")
 	err = dns.NewCache()
 	if err != nil {
 		log.Fatal(err)
@@ -55,6 +67,7 @@ func main() {
 	defer dns.Cache.Close()
 
 	// UDP DNS service
+	fmt.Println("Setting up UDP DNS service...")
 	dnsPort, err := mustGetEnv("DNS_PORT")
 	if err != nil {
 		log.Fatal(err)
@@ -70,6 +83,7 @@ func main() {
 	}()
 
 	// API
+	fmt.Println("Starting API service...")
 	apiPort, err := mustGetEnv("API_PORT")
 	if err != nil {
 		log.Fatal(err)

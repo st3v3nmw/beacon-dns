@@ -1,7 +1,6 @@
 package dns
 
 import (
-	"fmt"
 	"net"
 	"strings"
 
@@ -48,8 +47,7 @@ func processMsg(r *dnslib.Msg, filter *Filter) *dnslib.Msg {
 	qn := r.Question[0]
 	domain := strings.TrimSuffix(qn.Name, ".")
 
-	blocked, leaves := isBlocked(domain, filter)
-	fmt.Println("leaves", leaves)
+	blocked, _ := isBlocked(domain, filter)
 	if blocked {
 		m = blockDomainOnUDP(r)
 	} else {

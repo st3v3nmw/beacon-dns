@@ -56,6 +56,7 @@ type Response struct {
 	Authority  []Answer   `json:"Authority,omitempty"`
 	Additional []Answer   `json:"Additional,omitempty"`
 	Comment    string     `json:"Comment,omitempty"`
+	Trace      []Leaf     `json:"Trace,omitempty"`
 }
 
 func responseFromMsg(m *dnslib.Msg) *Response {
@@ -112,10 +113,9 @@ type Answer struct {
 }
 
 func HandleDoHReqJson(rq *Request, filter *Filter) (*Response, error) {
-	blocked, leaves := isBlocked(rq.Name, filter)
-	fmt.Println("leaves", leaves)
+	blocked, trace := isBlocked(rq.Name, filter)
 	if blocked {
-		return blockDomainOnDoH(rq), nil
+		return blockDomainOnDoH(rq, trace), nil
 	} else {
 		r := &dnslib.Msg{
 			MsgHdr: dnslib.MsgHdr{
@@ -151,7 +151,7 @@ func HandleDoHReqWire(query []byte, filter *Filter) ([]byte, error) {
 	return m.Pack()
 }
 
-func blockDomainOnDoH(rq *Request) *Response {
+func blockDomainOnDoH(rq *Request, trace []Leaf) *Response {
 	var status int
 	answer := make([]Answer, 0, 1)
 	switch uint16(rq.Type) {
@@ -177,20 +177,24 @@ func blockDomainOnDoH(rq *Request) *Response {
 		status = dnslib.RcodeRefused
 	}
 
-	question := []Question{
-		{
-			Name: rq.Name,
-			Type: rq.Type,
+	response := &Response{
+		Status: status,
+		TC:     false,
+		RD:     true,
+		RA:     true,
+		AD:     true,
+		CD:     false,
+		Question: []Question{
+			{
+				Name: rq.Name,
+				Type: rq.Type,
+			},
 		},
+		Answer: answer,
 	}
-	return &Response{
-		Status:   status,
-		TC:       false,
-		RD:       true,
-		RA:       true,
-		AD:       true,
-		CD:       false,
-		Question: question,
-		Answer:   answer,
+	if rq.Trace {
+		response.Trace = trace
 	}
+
+	return response
 }
