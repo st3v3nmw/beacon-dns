@@ -214,7 +214,6 @@ func resolve(r *dnslib.Msg) (*dnslib.Msg, error) {
 	cacheTtl = minAnswerTtl(cacheTtl, m.Extra)
 	if cacheTtl > 30 && cacheTtl != maxUint32 {
 		Cache.Set(key, m, time.Duration(cacheTtl-15)*time.Second)
-		fmt.Println(cacheTtl)
 	}
 
 	return m, nil
@@ -223,7 +222,7 @@ func resolve(r *dnslib.Msg) (*dnslib.Msg, error) {
 func minAnswerTtl(cacheTtl uint32, rr []dnslib.RR) uint32 {
 	for _, ans := range rr {
 		ttl := ans.Header().Ttl
-		if ttl < cacheTtl {
+		if ttl < cacheTtl && ttl != 0 {
 			cacheTtl = ttl
 		}
 	}

@@ -111,7 +111,7 @@ type Answer struct {
 	Data string `json:"data"`
 }
 
-func HandleDoHRequest(rq *Request, filter *Filter) (*Response, error) {
+func HandleDoHReqJson(rq *Request, filter *Filter) (*Response, error) {
 	blocked, leaves := isBlocked(rq.Name, filter)
 	fmt.Println("leaves", leaves)
 	if blocked {
@@ -138,6 +138,17 @@ func HandleDoHRequest(rq *Request, filter *Filter) (*Response, error) {
 
 		return responseFromMsg(m), nil
 	}
+}
+
+func HandleDoHReqWire(query []byte, filter *Filter) ([]byte, error) {
+	r := &dnslib.Msg{}
+	err := r.Unpack(query)
+	if err != nil {
+		return nil, err
+	}
+
+	m := processMsg(r, filter)
+	return m.Pack()
 }
 
 func blockDomainOnDoH(rq *Request) *Response {
