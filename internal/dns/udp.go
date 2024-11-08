@@ -1,6 +1,7 @@
 package dns
 
 import (
+	"fmt"
 	"net"
 	"strings"
 
@@ -28,26 +29,30 @@ func handleUDPRequest(w dnslib.ResponseWriter, r *dnslib.Msg) {
 	if len(r.Question) == 0 {
 		// no question asked
 		// TODO: Test how or when this occurs
-		// dig +noqr example.com
-		// dig +noqr +noquestion example.com
 		return
 	}
 
 	var m *dnslib.Msg
 	qn := r.Question[0]
 	domain := strings.TrimSuffix(qn.Name, ".")
-	filter := Filter{
+	filter := &Filter{
 		Ads:     true,
 		Malware: true,
 	}
-	if isBlocked(domain, filter) {
+
+	blocked, leaves := isBlocked(domain, filter)
+	fmt.Println("leaves", leaves)
+	if blocked {
 		m = blockDomainOnUDP(r)
 	} else {
 		var err error
-		m, err = forwardToUpstream(r)
+		m, err = resolve(r)
 
 		if err != nil {
-			// TODO: Handle this
+			m = &dnslib.Msg{}
+			m.SetReply(r)
+			m.RecursionAvailable = true
+			m.SetRcode(r, dnslib.RcodeServerFailure)
 		}
 	}
 
@@ -58,7 +63,6 @@ func blockDomainOnUDP(r *dnslib.Msg) *dnslib.Msg {
 	m := new(dnslib.Msg)
 	m.SetReply(r)
 	m.RecursionAvailable = true
-	m.SetRcode(r, dnslib.RcodeSuccess)
 
 	qn := r.Question[0]
 	switch qn.Qtype {
@@ -73,6 +77,7 @@ func blockDomainOnUDP(r *dnslib.Msg) *dnslib.Msg {
 			A: net.ParseIP("0.0.0.0"),
 		}
 		m.Answer = append(m.Answer, a)
+		m.SetRcode(r, dnslib.RcodeSuccess)
 	case dnslib.TypeAAAA:
 		aaaa := &dnslib.AAAA{
 			Hdr: dnslib.RR_Header{
@@ -84,6 +89,9 @@ func blockDomainOnUDP(r *dnslib.Msg) *dnslib.Msg {
 			AAAA: net.ParseIP("::"),
 		}
 		m.Answer = append(m.Answer, aaaa)
+		m.SetRcode(r, dnslib.RcodeSuccess)
+	default:
+		m.SetRcode(r, dnslib.RcodeRefused)
 	}
 
 	return m

@@ -21,6 +21,9 @@ func queryDNS(c echo.Context) error {
 		err = echo.QueryParamsBinder(c).
 			String("name", &qn.Name).
 			JSONUnmarshaler("type", &qn.Type).
+			Bool("do", &qn.DO).
+			Bool("cd", &qn.CD).
+			Bool("trace", &qn.Trace).
 			BindError()
 	} else {
 		s := echo.DefaultJSONSerializer{}

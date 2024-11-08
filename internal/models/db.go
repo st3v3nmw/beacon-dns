@@ -1,17 +1,27 @@
 package models
 
 import (
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
+	"context"
+	"database/sql"
+
+	"github.com/canonical/go-dqlite/v3/app"
 )
 
 var (
-	DB *gorm.DB
+	DB *sql.DB
 )
 
-func NewDB(connString string) error {
-	var err error
-	DB, err = gorm.Open(postgres.New(postgres.Config{DSN: connString}), &gorm.Config{})
+func NewDB(dir, address string, peers []string) error {
+	dqliteApp, err := app.New(dir, app.WithAddress(address), app.WithCluster(peers))
+	if err != nil {
+		return err
+	}
+
+	if err := dqliteApp.Ready(context.Background()); err != nil {
+		return err
+	}
+
+	DB, err = dqliteApp.Open(context.Background(), "file:beacon.db?_foreign_keys=on")
 	if err != nil {
 		return err
 	}
@@ -20,5 +30,6 @@ func NewDB(connString string) error {
 }
 
 func MigrateDB() error {
-	return DB.AutoMigrate(&List{}, &ListEntry{})
+	_, err := DB.Exec(schema)
+	return err
 }

@@ -35,12 +35,13 @@ func (f *QType) UnmarshalJSON(data []byte) error {
 
 }
 
-// TODO: Work on DO & CD. They don't do anything right now.
+// TODO: Work on DO, CD, & Trace. They don't do anything right now.
 type Request struct {
-	Name string `json:"name" validate:"required,fqdn"`
-	Type QType  `json:"type"`
-	DO   bool   `json:"do"` // whether the client wants DNSSEC records
-	CD   bool   `json:"cd"` // disable DNSSEC validation
+	Name  string `json:"name" validate:"required,fqdn"`
+	Type  QType  `json:"type"`
+	DO    bool   `json:"do"`    // whether the client wants DNSSEC records
+	CD    bool   `json:"cd"`    // disable DNSSEC validation
+	Trace bool   `json:"trace"` // show what blocklists/allowlists were applied
 }
 
 type Response struct {
@@ -53,6 +54,40 @@ type Response struct {
 	Question []Question `json:"Question"`
 	Answer   []Answer   `json:"Answer"`
 	Comment  string     `json:"Comment,omitempty"`
+	// Traces   []string   `json:"Traces,omitempty"`
+}
+
+func responseFromMsg(m *dnslib.Msg) *Response {
+	qn := m.Question[0]
+	answer := make([]Answer, len(m.Answer))
+	for i, a := range m.Answer {
+		answer[i] = Answer{
+			Name: qn.Name,
+			Type: a.Header().Rrtype,
+			TTL:  a.Header().Ttl,
+		}
+
+		headerStr := a.Header().String()
+		rrStr := a.String()
+		answer[i].Data = strings.TrimLeft(rrStr, headerStr)
+	}
+
+	question := []Question{
+		{
+			Name: qn.Name,
+			Type: QType(qn.Qtype),
+		},
+	}
+	return &Response{
+		Status:   m.Rcode,
+		TC:       m.Truncated,
+		RD:       m.RecursionDesired,
+		RA:       m.RecursionAvailable,
+		AD:       m.AuthenticatedData,
+		CD:       m.CheckingDisabled,
+		Question: question,
+		Answer:   answer,
+	}
 }
 
 type Question struct {
@@ -68,7 +103,9 @@ type Answer struct {
 }
 
 func HandleDoHRequest(rq *Request, filter *Filter) (*Response, error) {
-	if isBlocked(rq.Name, Filter{}) {
+	blocked, leaves := isBlocked(rq.Name, filter)
+	fmt.Println("leaves", leaves)
+	if blocked {
 		return blockDomainOnDoH(rq), nil
 	} else {
 		r := &dnslib.Msg{
@@ -85,50 +122,18 @@ func HandleDoHRequest(rq *Request, filter *Filter) (*Response, error) {
 			},
 		}
 
-		m, err := forwardToUpstream(r)
+		m, err := resolve(r)
 		if err != nil {
 			return nil, err
 		}
 
-		answer := make([]Answer, len(m.Answer))
-		for i, a := range m.Answer {
-			answer[i] = Answer{
-				Name: rq.Name,
-				Type: a.Header().Rrtype,
-				TTL:  a.Header().Ttl,
-			}
-
-			switch t := a.(type) {
-			// TODO: Handle other message types
-			case *dnslib.A:
-				answer[i].Data = t.A.String()
-			case *dnslib.AAAA:
-				answer[i].Data = t.AAAA.String()
-			}
-		}
-
-		question := []Question{
-			{
-				Name: rq.Name,
-				Type: rq.Type,
-			},
-		}
-		return &Response{
-			Status:   m.Rcode,
-			TC:       m.Truncated,
-			RD:       m.RecursionDesired,
-			RA:       m.RecursionAvailable,
-			AD:       m.AuthenticatedData,
-			CD:       m.CheckingDisabled,
-			Question: question,
-			Answer:   answer,
-		}, nil
+		return responseFromMsg(m), nil
 	}
 }
 
 func blockDomainOnDoH(rq *Request) *Response {
+	var status int
 	answer := make([]Answer, 0, 1)
-
 	switch uint16(rq.Type) {
 	case dnslib.TypeA:
 		a := Answer{
@@ -138,6 +143,7 @@ func blockDomainOnDoH(rq *Request) *Response {
 			Data: "0.0.0.0",
 		}
 		answer = append(answer, a)
+		status = dnslib.RcodeSuccess
 	case dnslib.TypeAAAA:
 		a := Answer{
 			Name: rq.Name,
@@ -146,6 +152,9 @@ func blockDomainOnDoH(rq *Request) *Response {
 			Data: "::",
 		}
 		answer = append(answer, a)
+		status = dnslib.RcodeSuccess
+	default:
+		status = dnslib.RcodeRefused
 	}
 
 	question := []Question{
@@ -155,12 +164,12 @@ func blockDomainOnDoH(rq *Request) *Response {
 		},
 	}
 	return &Response{
-		Status:   dnslib.RcodeSuccess,
-		TC:       true,
+		Status:   status,
+		TC:       false,
 		RD:       true,
 		RA:       true,
 		AD:       true,
-		CD:       true,
+		CD:       false,
 		Question: question,
 		Answer:   answer,
 	}
