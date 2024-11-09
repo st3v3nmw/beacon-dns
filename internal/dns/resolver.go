@@ -145,7 +145,8 @@ func isBlockedByCategory(key string, category lists.Category) (bool, []Leaf) {
 		return false, nil
 	}
 
-	if val, found := tree.Get(key); found {
+	_, val, found := tree.LongestPrefix(key)
+	if found {
 		leaves := val.([]Leaf)
 
 		for _, leaf := range leaves {
