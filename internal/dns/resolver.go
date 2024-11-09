@@ -33,8 +33,9 @@ func NewCache() error {
 }
 
 type Leaf struct {
-	List   string       `json:"list"`
-	Action lists.Action `json:"action"`
+	List     string         `json:"list"`
+	Category lists.Category `json:"category"`
+	Action   lists.Action   `json:"action"`
 }
 
 // By default, we filter out ads & malware.
@@ -76,36 +77,24 @@ func NewFilterFromStr(filterStr string) (*Filter, error) {
 }
 
 func (f *Filter) Categories() []lists.Category {
+	categoryMap := map[lists.Category]bool{
+		lists.CategoryAds:            f.Ads,
+		lists.CategoryMalware:        f.Malware,
+		lists.CategoryAdult:          f.Adult,
+		lists.CategoryDating:         f.Dating,
+		lists.CategorySocialMedia:    f.SocialMedia,
+		lists.CategoryVideoStreaming: f.VideoStreaming,
+		lists.CategoryGambling:       f.Gambling,
+		lists.CategoryGaming:         f.Gaming,
+		lists.CategoryPiracy:         f.Piracy,
+		lists.CategoryDrugs:          f.Drugs,
+	}
+
 	categories := make([]lists.Category, 0, 10)
-	if f.Ads {
-		categories = append(categories, lists.CategoryAds)
-	}
-	if f.Malware {
-		categories = append(categories, lists.CategoryMalware)
-	}
-	if f.Adult {
-		categories = append(categories, lists.CategoryAdult)
-	}
-	if f.Dating {
-		categories = append(categories, lists.CategoryDating)
-	}
-	if f.SocialMedia {
-		categories = append(categories, lists.CategorySocialMedia)
-	}
-	if f.VideoStreaming {
-		categories = append(categories, lists.CategoryVideoStreaming)
-	}
-	if f.Gambling {
-		categories = append(categories, lists.CategoryGambling)
-	}
-	if f.Gaming {
-		categories = append(categories, lists.CategoryGaming)
-	}
-	if f.Piracy {
-		categories = append(categories, lists.CategoryPiracy)
-	}
-	if f.Drugs {
-		categories = append(categories, lists.CategoryDrugs)
+	for category, enabled := range categoryMap {
+		if enabled {
+			categories = append(categories, category)
+		}
 	}
 
 	return categories
@@ -128,8 +117,9 @@ func LoadListsToMemory() error {
 				leaves = val.([]Leaf)
 			}
 			leaves = append(leaves, Leaf{
-				List:   name,
-				Action: list.Action,
+				List:     name,
+				Category: list.Category,
+				Action:   list.Action,
 			})
 
 			tree.Insert(key, leaves)
@@ -160,9 +150,6 @@ func isBlockedByCategory(key string, category lists.Category) (bool, []Leaf) {
 
 		for _, leaf := range leaves {
 			if leaf.Action == lists.ActionAllow {
-				// Allowlists have higher precedence than blocklists
-				// We primarily use blocklists as filters and allowlists to
-				// remove false positives in a category
 				return false, leaves
 			}
 		}

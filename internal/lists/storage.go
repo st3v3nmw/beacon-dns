@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/minio/minio-go/v7"
@@ -61,7 +60,7 @@ type Category string
 
 const (
 	CategoryAds            Category = "ads"             // ads, trackers
-	CategoryMalware        Category = "malware"         // malware, ransomware, phishing, cryptojacking
+	CategoryMalware        Category = "malware"         // malware, ransomware, phishing, cryptojacking, stalkerware
 	CategoryAdult          Category = "adult"           // adult content
 	CategoryDating         Category = "dating"          // dating
 	CategorySocialMedia    Category = "social-media"    // social media
@@ -84,8 +83,8 @@ type List struct {
 	Domains     []string  `json:"domains"`
 }
 
-func newFromSource(name, description, url string, action Action, category Category) (*List, error) {
-	resp, err := http.Get(url)
+func newFromSource(source Source) (*List, error) {
+	resp, err := http.Get(source.URL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch source: %v", err)
 	}
@@ -97,13 +96,13 @@ func newFromSource(name, description, url string, action Action, category Catego
 	}
 
 	l := &List{
-		Name:        name,
-		Description: description,
-		URL:         url,
-		Action:      action,
-		Category:    category,
+		Name:        source.Name,
+		Description: source.Description,
+		URL:         source.URL,
+		Action:      source.Action,
+		Category:    source.Category,
 		LastSync:    time.Now().UTC(),
-		Domains:     strings.Split(string(body), "\n"),
+		Domains:     parseDomains(body, source.Format),
 	}
 	return l, nil
 }

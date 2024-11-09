@@ -35,7 +35,7 @@ func (f *QType) UnmarshalJSON(data []byte) error {
 
 }
 
-// TODO: Work on DO, CD, & Trace. They don't do anything right now.
+// TODO: Work on DO & CD. They don't do anything right now.
 type Request struct {
 	Name  string `json:"name" validate:"required,fqdn"`
 	Type  QType  `json:"type"`
