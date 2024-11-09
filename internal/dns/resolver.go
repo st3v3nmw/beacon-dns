@@ -10,11 +10,11 @@ import (
 	"github.com/armon/go-radix"
 	"github.com/maypok86/otter"
 	dnslib "github.com/miekg/dns"
-	"github.com/st3v3nmw/beacon/internal/models"
+	"github.com/st3v3nmw/beacon/internal/lists"
 )
 
 var (
-	lists         map[string]*radix.Tree
+	root          map[lists.Category]*radix.Tree
 	Cache         otter.CacheWithVariableTTL[string, *dnslib.Msg]
 	defaultDNSTTL uint32 = 300
 )
@@ -33,11 +33,11 @@ func NewCache() error {
 }
 
 type Leaf struct {
-	List       string `json:"list"`
-	Action     string `json:"action"`
-	IsOverride bool   `json:"is_override"`
+	List   string       `json:"list"`
+	Action lists.Action `json:"action"`
 }
 
+// By default, we filter out ads & malware.
 type Filter struct {
 	Ads            bool
 	Malware        bool
@@ -75,81 +75,65 @@ func NewFilterFromStr(filterStr string) (*Filter, error) {
 	}, nil
 }
 
-func (f *Filter) Categories() []string {
-	categories := make([]string, 0, 10)
+func (f *Filter) Categories() []lists.Category {
+	categories := make([]lists.Category, 0, 10)
 	if f.Ads {
-		categories = append(categories, "ads")
+		categories = append(categories, lists.CategoryAds)
 	}
 	if f.Malware {
-		categories = append(categories, "malware")
+		categories = append(categories, lists.CategoryMalware)
 	}
 	if f.Adult {
-		categories = append(categories, "adult")
+		categories = append(categories, lists.CategoryAdult)
 	}
 	if f.Dating {
-		categories = append(categories, "dating")
+		categories = append(categories, lists.CategoryDating)
 	}
 	if f.SocialMedia {
-		categories = append(categories, "social-media")
+		categories = append(categories, lists.CategorySocialMedia)
 	}
 	if f.VideoStreaming {
-		categories = append(categories, "video-streaming")
+		categories = append(categories, lists.CategoryVideoStreaming)
 	}
 	if f.Gambling {
-		categories = append(categories, "gambling")
+		categories = append(categories, lists.CategoryGambling)
 	}
 	if f.Gaming {
-		categories = append(categories, "gaming")
+		categories = append(categories, lists.CategoryGaming)
 	}
 	if f.Piracy {
-		categories = append(categories, "piracy")
+		categories = append(categories, lists.CategoryPiracy)
 	}
 	if f.Drugs {
-		categories = append(categories, "drugs")
+		categories = append(categories, lists.CategoryDrugs)
 	}
 
 	return categories
 }
 
 func LoadListsToMemory() error {
-	rows, err := models.DB.Query(`
-		SELECT l.name, l.category, e.domain, e.action, e.is_override
-		FROM lists l
-		JOIN entries e ON e.list_id = l.id
-	`)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-
-	lists = make(map[string]*radix.Tree)
-	for rows.Next() {
-		var name, category, domain, action string
-		var isOverride bool
-		err := rows.Scan(&name, &category, &domain, &action, &isOverride)
-		if err != nil {
-			return err
-		}
-
-		tree, ok := lists[category]
+	root = make(map[lists.Category]*radix.Tree)
+	for name, list := range lists.PersistedLists {
+		tree, ok := root[list.Category]
 		if !ok {
 			tree = radix.New()
-			lists[category] = tree
+			root[list.Category] = tree
 		}
 
-		key := reverseDomain(domain)
+		for _, domain := range list.Domains {
+			key := reverseDomain(domain)
 
-		var leaves []Leaf
-		if val, ok := tree.Get(key); ok {
-			leaves = val.([]Leaf)
+			var leaves []Leaf
+			if val, ok := tree.Get(key); ok {
+				leaves = val.([]Leaf)
+			}
+			leaves = append(leaves, Leaf{
+				List:   name,
+				Action: list.Action,
+			})
+
+			tree.Insert(key, leaves)
 		}
-		leaves = append(leaves, Leaf{
-			List:       name,
-			Action:     action,
-			IsOverride: isOverride,
-		})
-
-		tree.Insert(key, leaves)
 	}
 	return nil
 }
@@ -165,8 +149,8 @@ func isBlocked(domain string, filter *Filter) (bool, []Leaf) {
 	return false, nil
 }
 
-func isBlockedByCategory(key, category string) (bool, []Leaf) {
-	tree, ok := lists[category]
+func isBlockedByCategory(key string, category lists.Category) (bool, []Leaf) {
+	tree, ok := root[category]
 	if !ok {
 		return false, nil
 	}
@@ -175,24 +159,18 @@ func isBlockedByCategory(key, category string) (bool, []Leaf) {
 		leaves := val.([]Leaf)
 
 		for _, leaf := range leaves {
-			if leaf.IsOverride {
-				return leaf.Action == "block", leaves
+			if leaf.Action == lists.ActionAllow {
+				// Allowlists have higher precedence than blocklists
+				// We primarily use blocklists as filters and allowlists to
+				// remove false positives in a category
+				return false, leaves
 			}
 		}
 
-		return anyLeafBlocks(leaves), leaves
+		return true, leaves
 	}
 
 	return false, nil
-}
-
-func anyLeafBlocks(leaves []Leaf) bool {
-	for _, leaf := range leaves {
-		if leaf.Action == "block" {
-			return true
-		}
-	}
-	return false
 }
 
 // Reverse domain for better tree structure

@@ -1,57 +1,65 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
-	"strings"
 
 	"github.com/st3v3nmw/beacon/internal/api"
 	"github.com/st3v3nmw/beacon/internal/dns"
-	"github.com/st3v3nmw/beacon/internal/models"
+	"github.com/st3v3nmw/beacon/internal/lists"
 )
 
 func main() {
 	fmt.Println("Beacon DNS\n==========")
 
-	// Database
-	fmt.Println("Starting dqlite...")
-	dqliteDir, err := mustGetEnv("DQLITE_DIR")
-	if err != nil {
-		log.Fatal(err)
-	}
-	os.Mkdir(dqliteDir, 0755)
-
-	dqlitePeers, err := mustGetEnv("DQLITE_PEERS")
+	// Object Storage
+	var err error
+	fmt.Println("Connecting to object storage...")
+	lists.BucketName, err = mustGetEnv("BUCKET_NAME")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	dqlitePort, err := mustGetEnv("DQLITE_PORT")
+	bucketKeyId, err := mustGetEnv("BUCKET_KEY_ID")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	dqliteAddr := fmt.Sprintf("0.0.0.0:%s", dqlitePort)
-	err = models.NewDB(dqliteDir, dqliteAddr, strings.Split(dqlitePeers, " "))
-	if err != nil {
-		log.Fatalf("error setting up database: %v\n", err)
-	}
-	defer models.DB.Close()
-
-	fmt.Println("Running migrations...")
-	err = models.MigrateDB()
+	bucketKey, err := mustGetEnv("BUCKET_KEY")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Println("Syncing blocklists with upstream sources...")
-	err = models.SyncBlockListsWithSources()
+	bucketEndpoint, err := mustGetEnv("BUCKET_ENDPOINT")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	bucketRegion, err := mustGetEnv("BUCKET_REGION")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = lists.NewMinioClient(bucketEndpoint, bucketKeyId, bucketKey, bucketRegion)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// Load lists
+	fmt.Println("Syncing blocklists with upstream sources...")
+	lists.DataDir, err = mustGetEnv("DATA_DIR")
+	if err != nil {
+		log.Fatal(err)
+	}
+	os.MkdirAll(lists.DataDir, 0755)
+
+	err = lists.Sync(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	fmt.Println("Loading blocklists into memory...")
 	err = dns.LoadListsToMemory()
 	if err != nil {
