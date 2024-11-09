@@ -1,7 +1,6 @@
 package lists
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/go-playground/validator/v10"
@@ -42,9 +41,6 @@ func parseDomains(data []byte, format SourceFormat) []string {
 		err := validate.Var(domain, "fqdn")
 		if err == nil {
 			domains = append(domains, domain)
-		} else {
-			fmt.Println(strings.Fields(line))
-			fmt.Println(err)
 		}
 	}
 
@@ -58,32 +54,62 @@ func getSources() []Source {
 		// ads, trackers
 		{
 			List: List{
+				Name:        "olbat:ut1-blacklists:publicite",
+				Description: "Collection of websites blacklists managed by the Université Toulouse Capitole",
+				URL:         "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/publicite/domains",
+				Category:    CategoryAds,
+				Action:      ActionBlock,
+			},
+			Format: SourceFormatDomains,
+		},
+		{
+			List: List{
 				Name:        "peter-lowe:adservers",
 				Description: "Blocklist for use with hosts files to block ads, trackers, and other nasty things",
 				URL:         "https://pgl.yoyo.org/adservers/serverlist.php?hostformat=hosts",
 				Category:    CategoryAds,
-				Action:      "block",
+				Action:      ActionBlock,
 			},
 			Format: SourceFormatHosts,
 		},
+		{
+			List: List{
+				Name:        "firebog:Easyprivacy",
+				Description: "Block tracking and improve end user privacy",
+				URL:         "https://v.firebog.net/hosts/Easyprivacy.txt",
+				Category:    CategoryAds,
+				Action:      ActionBlock,
+			},
+			Format: SourceFormatDomains,
+		},
 		// malware, ransomware, phishing, cryptojacking, stalkerware
+		{
+			List: List{
+				Name:        "olbat:ut1-blacklists:malware",
+				Description: "Collection of websites blacklists managed by the Université Toulouse Capitole",
+				URL:         "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/malware/domains",
+				Category:    CategoryMalware,
+				Action:      ActionBlock,
+			},
+			Format: SourceFormatDomains,
+		},
+		{
+			List: List{
+				Name:        "olbat:ut1-blacklists:phishing",
+				Description: "Collection of websites blacklists managed by the Université Toulouse Capitole",
+				URL:         "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/phishing/domains",
+				Category:    CategoryMalware,
+				Action:      ActionBlock,
+			},
+			Format: SourceFormatDomains,
+		},
 		{
 			List: List{
 				Name:        "olbat:ut1-blacklists:cryptojacking",
 				Description: "Collection of websites blacklists managed by the Université Toulouse Capitole",
 				URL:         "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/cryptojacking/domains",
 				Category:    CategoryMalware,
-				Action:      "block",
-			},
-			Format: SourceFormatDomains,
-		},
-		{
-			List: List{
-				Name:        "olbat:ut1-blacklists:stalkerware",
-				Description: "Collection of websites blacklists managed by the Université Toulouse Capitole",
-				URL:         "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/stalkerware/domains",
-				Category:    CategoryMalware,
-				Action:      "block",
+				Action:      ActionBlock,
 			},
 			Format: SourceFormatDomains,
 		},
@@ -94,7 +120,17 @@ func getSources() []Source {
 				Description: "A collection of category-specific host files",
 				URL:         "https://raw.githubusercontent.com/Sinfonietta/hostfiles/master/pornography-hosts",
 				Category:    CategoryAdult,
-				Action:      "block",
+				Action:      ActionBlock,
+			},
+			Format: SourceFormatHosts,
+		},
+		{
+			List: List{
+				Name:        "steven-black:hosts:porn-only",
+				Description: "Consolidating and extending hosts files from several well-curated sources",
+				URL:         "https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn-only/hosts",
+				Category:    CategoryAdult,
+				Action:      ActionBlock,
 			},
 			Format: SourceFormatHosts,
 		},
@@ -105,7 +141,7 @@ func getSources() []Source {
 				Description: "Collection of websites blacklists managed by the Université Toulouse Capitole",
 				URL:         "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/dating/domains",
 				Category:    CategoryDating,
-				Action:      "block",
+				Action:      ActionBlock,
 			},
 			Format: SourceFormatDomains,
 		},
@@ -116,7 +152,7 @@ func getSources() []Source {
 				Description: "Collection of websites blacklists managed by the Université Toulouse Capitole",
 				URL:         "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/social_networks/domains",
 				Category:    CategorySocialMedia,
-				Action:      "block",
+				Action:      ActionBlock,
 			},
 			Format: SourceFormatDomains,
 		},
@@ -128,7 +164,7 @@ func getSources() []Source {
 				Description: "Collection of websites blacklists managed by the Université Toulouse Capitole",
 				URL:         "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/gambling/domains",
 				Category:    CategoryGambling,
-				Action:      "block",
+				Action:      ActionBlock,
 			},
 			Format: SourceFormatDomains,
 		},
@@ -138,7 +174,7 @@ func getSources() []Source {
 				Description: "A collection of category-specific host files",
 				URL:         "https://raw.githubusercontent.com/Sinfonietta/hostfiles/master/gambling-hosts",
 				Category:    CategoryGambling,
-				Action:      "block",
+				Action:      ActionBlock,
 			},
 			Format: SourceFormatHosts,
 		},
@@ -149,11 +185,21 @@ func getSources() []Source {
 				Description: "Collection of websites blacklists managed by the Université Toulouse Capitole",
 				URL:         "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/games/domains",
 				Category:    CategoryGaming,
-				Action:      "block",
+				Action:      ActionBlock,
 			},
 			Format: SourceFormatDomains,
 		},
 		// piracy, torrents
+		{
+			List: List{
+				Name:        "hagezi:dns-blocklists:anti.piracy-onlydomains",
+				Description: "DNS-Blocklists: For a better internet - keep the internet clean!",
+				URL:         "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/anti.piracy-onlydomains.txt",
+				Category:    CategoryPiracy,
+				Action:      ActionBlock,
+			},
+			Format: SourceFormatDomains,
+		},
 		// drugs
 		{
 			List: List{
@@ -161,7 +207,7 @@ func getSources() []Source {
 				Description: "Collection of websites blacklists managed by the Université Toulouse Capitole",
 				URL:         "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/drogue/domains",
 				Category:    CategoryDrugs,
-				Action:      "block",
+				Action:      ActionBlock,
 			},
 			Format: SourceFormatDomains,
 		},
