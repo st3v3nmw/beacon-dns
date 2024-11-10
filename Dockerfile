@@ -15,8 +15,8 @@ FROM scratch
 
 COPY --from=builder /app/beacon /beacon
 
-EXPOSE 8080
-EXPOSE 2053
-EXPOSE 2853
+EXPOSE 443
+EXPOSE 53
+EXPOSE 853
 
 CMD ["/beacon"]

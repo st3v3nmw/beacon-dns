@@ -6,53 +6,50 @@ import (
 	"log"
 	"os"
 
+	"github.com/caarlos0/env/v11"
 	"github.com/st3v3nmw/beacon/internal/api"
 	"github.com/st3v3nmw/beacon/internal/dns"
 	"github.com/st3v3nmw/beacon/internal/lists"
 )
 
+type Config struct {
+	ApiPort        string `env:"API_PORT,notEmpty"`
+	DnsPort        string `env:"DNS_PORT,notEmpty"`
+	DataDir        string `env:"DATA_DIR,notEmpty"`
+	BucketName     string `env:"BUCKET_NAME,notEmpty"`
+	BucketKeyId    string `env:"BUCKET_KEY_ID,notEmpty"`
+	BucketKey      string `env:"BUCKET_KEY,notEmpty"`
+	BucketEndpoint string `env:"BUCKET_ENDPOINT,notEmpty"`
+	BucketRegion   string `env:"BUCKET_REGION,notEmpty"`
+}
+
 func main() {
 	fmt.Println("Beacon DNS\n==========")
 
+	// Load env
+	var config Config
+	if err := env.ParseWithOptions(&config, env.Options{
+		Prefix: "BEACON_",
+	}); err != nil {
+		log.Fatal(err)
+	}
+
 	// Object Storage
-	var err error
 	fmt.Println("Connecting to object storage...")
-	lists.BucketName, err = mustGetEnv("BUCKET_NAME")
-	if err != nil {
-		log.Fatal(err)
-	}
+	lists.BucketName = config.BucketName
+	bucketKeyId := config.BucketKeyId
+	bucketKey := config.BucketKey
+	bucketEndpoint := config.BucketEndpoint
+	bucketRegion := config.BucketRegion
 
-	bucketKeyId, err := mustGetEnv("BUCKET_KEY_ID")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	bucketKey, err := mustGetEnv("BUCKET_KEY")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	bucketEndpoint, err := mustGetEnv("BUCKET_ENDPOINT")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	bucketRegion, err := mustGetEnv("BUCKET_REGION")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = lists.NewMinioClient(bucketEndpoint, bucketKeyId, bucketKey, bucketRegion)
+	err := lists.NewMinioClient(bucketEndpoint, bucketKeyId, bucketKey, bucketRegion)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// Load lists
 	fmt.Println("Syncing blocklists with upstream sources...")
-	lists.DataDir, err = mustGetEnv("DATA_DIR")
-	if err != nil {
-		log.Fatal(err)
-	}
+	lists.DataDir = config.DataDir
 	os.MkdirAll(lists.DataDir, 0755)
 
 	err = lists.Sync(context.Background())
@@ -76,11 +73,7 @@ func main() {
 
 	// UDP DNS service
 	fmt.Println("Setting up UDP DNS service...")
-	dnsPort, err := mustGetEnv("DNS_PORT")
-	if err != nil {
-		log.Fatal(err)
-	}
-	dnsAddr := fmt.Sprintf(":%s", dnsPort)
+	dnsAddr := fmt.Sprintf(":%s", config.DnsPort)
 
 	dns.NewUDPServer(dnsAddr)
 
@@ -92,22 +85,8 @@ func main() {
 
 	// API
 	fmt.Println("Starting API service...")
-	apiPort, err := mustGetEnv("API_PORT")
-	if err != nil {
-		log.Fatal(err)
-	}
-	apiAddr := fmt.Sprintf(":%s", apiPort)
+	apiAddr := fmt.Sprintf(":%s", config.ApiPort)
 
 	api.New(apiAddr)
 	api.Start()
-}
-
-func mustGetEnv(envVar string) (string, error) {
-	fullEnvVar := fmt.Sprintf("BEACON_%s", envVar)
-	value, ok := os.LookupEnv(fullEnvVar)
-	if !ok {
-		return "", fmt.Errorf("env var not set: %s", fullEnvVar)
-	}
-
-	return value, nil
 }

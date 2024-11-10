@@ -3,6 +3,7 @@ module github.com/st3v3nmw/beacon
 go 1.23.2
 
 require (
+	github.com/caarlos0/env/v11 v11.2.2
 	github.com/go-playground/validator/v10 v10.22.1
 	github.com/hashicorp/go-immutable-radix/v2 v2.1.0
 	github.com/labstack/echo/v4 v4.12.0
