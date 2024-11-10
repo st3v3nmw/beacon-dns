@@ -96,10 +96,6 @@ $ sudo systemctl restart systemd-resolved
 $ docker build .
 ```
 
-```console
-$ linuxkit build --format iso-efi image.yml
-```
-
 ## Setting up new nodes
 
 --> move to separate doc

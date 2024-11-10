@@ -95,7 +95,7 @@ func rrToAnswer(name string, rr []dnslib.RR) []Answer {
 
 		headerStr := a.Header().String()
 		rrStr := a.String()
-		answer[i].Data = strings.TrimLeft(rrStr, headerStr)
+		answer[i].Data = strings.TrimPrefix(rrStr, headerStr)
 	}
 	return answer
 }

@@ -129,7 +129,7 @@ func LoadListsToMemory() error {
 func isBlocked(domain string, filter *Filter) (bool, []Leaf) {
 	key := []byte(reverseDomain(domain))
 	for _, category := range filter.Categories() {
-		blocked, leaves := isBlockedByCategory(key, category)
+		blocked, leaves := isBlockedByCategory(key, domain, category)
 		if blocked {
 			return blocked, leaves
 		}
@@ -137,14 +137,23 @@ func isBlocked(domain string, filter *Filter) (bool, []Leaf) {
 	return false, nil
 }
 
-func isBlockedByCategory(key []byte, category lists.Category) (bool, []Leaf) {
+func isBlockedByCategory(key []byte, domain string, category lists.Category) (bool, []Leaf) {
 	tree, ok := root[category]
 	if !ok {
 		return false, nil
 	}
 
-	_, leaves, found := tree.Root().LongestPrefix(key)
+	prefix, leaves, found := tree.Root().LongestPrefix(key)
 	if found {
+		// check that it is indeed a match
+		// in some cases like key = com.serverfault & blocked = com.server
+		// this matches, even though it shouldn't
+		// so we need to check that serverfault.com has suffix server.com
+		base := reverseDomain(string(prefix))
+		if !strings.HasSuffix(domain, base) {
+			return false, nil
+		}
+
 		for _, leaf := range leaves {
 			if *leaf.Action == lists.ActionAllow {
 				return false, leaves
