@@ -7,14 +7,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/armon/go-radix"
+	iradix "github.com/hashicorp/go-immutable-radix/v2"
 	"github.com/maypok86/otter"
 	dnslib "github.com/miekg/dns"
 	"github.com/st3v3nmw/beacon/internal/lists"
 )
 
 var (
-	root          map[lists.Category]*radix.Tree
+	root          map[lists.Category]*iradix.Tree[[]Leaf]
 	Cache         otter.CacheWithVariableTTL[string, *dnslib.Msg]
 	defaultDNSTTL uint32 = 300
 )
@@ -33,9 +33,9 @@ func NewCache() error {
 }
 
 type Leaf struct {
-	List     string         `json:"list"`
-	Category lists.Category `json:"category"`
-	Action   lists.Action   `json:"action"`
+	List     string          `json:"list"`
+	Category *lists.Category `json:"category"`
+	Action   *lists.Action   `json:"action"`
 }
 
 // By default, we filter out ads & malware.
@@ -101,35 +101,33 @@ func (f *Filter) Categories() []lists.Category {
 }
 
 func LoadListsToMemory() error {
-	root = make(map[lists.Category]*radix.Tree)
+	root = make(map[lists.Category]*iradix.Tree[[]Leaf])
 	for name, list := range lists.PersistedLists {
 		tree, ok := root[list.Category]
 		if !ok {
-			tree = radix.New()
-			root[list.Category] = tree
+			tree = iradix.New[[]Leaf]()
 		}
 
 		for _, domain := range list.Domains {
-			key := reverseDomain(domain)
+			key := []byte(reverseDomain(domain))
 
-			var leaves []Leaf
-			if val, ok := tree.Get(key); ok {
-				leaves = val.([]Leaf)
-			}
+			leaves, _ := tree.Get(key)
 			leaves = append(leaves, Leaf{
 				List:     name,
-				Category: list.Category,
-				Action:   list.Action,
+				Category: &list.Category,
+				Action:   &list.Action,
 			})
 
-			tree.Insert(key, leaves)
+			tree, _, _ = tree.Insert(key, leaves)
 		}
+
+		root[list.Category] = tree
 	}
 	return nil
 }
 
 func isBlocked(domain string, filter *Filter) (bool, []Leaf) {
-	key := reverseDomain(domain)
+	key := []byte(reverseDomain(domain))
 	for _, category := range filter.Categories() {
 		blocked, leaves := isBlockedByCategory(key, category)
 		if blocked {
@@ -139,23 +137,21 @@ func isBlocked(domain string, filter *Filter) (bool, []Leaf) {
 	return false, nil
 }
 
-func isBlockedByCategory(key string, category lists.Category) (bool, []Leaf) {
+func isBlockedByCategory(key []byte, category lists.Category) (bool, []Leaf) {
 	tree, ok := root[category]
 	if !ok {
 		return false, nil
 	}
 
-	_, val, found := tree.LongestPrefix(key)
+	_, leaves, found := tree.Root().LongestPrefix(key)
 	if found {
-		leaves := val.([]Leaf)
-
 		for _, leaf := range leaves {
-			if leaf.Action == lists.ActionAllow {
+			if *leaf.Action == lists.ActionAllow {
 				return false, leaves
 			}
 		}
 
-		return true, leaves
+		return len(leaves) > 0, leaves
 	}
 
 	return false, nil
