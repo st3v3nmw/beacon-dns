@@ -157,6 +157,16 @@ func getSources() []Source {
 			Format: SourceFormatDomains,
 		},
 		// video streaming platforms
+		{
+			List: List{
+				Name:        "beacon-dns-lists:blocklists:video-streaming",
+				Description: "Blocklists & allowlists for Beacon DNS",
+				URL:         "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/blocklists/video-streaming",
+				Category:    CategoryVideoStreaming,
+				Action:      ActionBlock,
+			},
+			Format: SourceFormatDomains,
+		},
 		// gambling
 		{
 			List: List{
@@ -219,15 +229,115 @@ func getSources() []Source {
 	// There should be only one allowlist per category
 	allowlists := []Source{
 		// ads, trackers
+		{
+			List: List{
+				Name:        "beacon-dns-lists:allowlists:ads",
+				Description: "Blocklists & allowlists for Beacon DNS",
+				URL:         "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/allowlists/ads",
+				Category:    CategoryAds,
+				Action:      ActionAllow,
+			},
+			Format: SourceFormatDomains,
+		},
 		// malware, ransomware, phishing, cryptojacking, stalkerware
+		{
+			List: List{
+				Name:        "beacon-dns-lists:allowlists:malware",
+				Description: "Blocklists & allowlists for Beacon DNS",
+				URL:         "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/allowlists/malware",
+				Category:    CategoryMalware,
+				Action:      ActionAllow,
+			},
+			Format: SourceFormatDomains,
+		},
 		// adult content
+		{
+			List: List{
+				Name:        "beacon-dns-lists:allowlists:adult",
+				Description: "Blocklists & allowlists for Beacon DNS",
+				URL:         "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/allowlists/adult",
+				Category:    CategoryAdult,
+				Action:      ActionAllow,
+			},
+			Format: SourceFormatDomains,
+		},
 		// dating
+		{
+			List: List{
+				Name:        "beacon-dns-lists:allowlists:dating",
+				Description: "Blocklists & allowlists for Beacon DNS",
+				URL:         "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/allowlists/dating",
+				Category:    CategoryDating,
+				Action:      ActionAllow,
+			},
+			Format: SourceFormatDomains,
+		},
 		// social media
+		{
+			List: List{
+				Name:        "beacon-dns-lists:allowlists:social-media",
+				Description: "Blocklists & allowlists for Beacon DNS",
+				URL:         "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/allowlists/social-media",
+				Category:    CategorySocialMedia,
+				Action:      ActionAllow,
+			},
+			Format: SourceFormatDomains,
+		},
 		// video streaming platforms
+		{
+			List: List{
+				Name:        "beacon-dns-lists:allowlists:video-streaming",
+				Description: "Blocklists & allowlists for Beacon DNS",
+				URL:         "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/allowlists/video-streaming",
+				Category:    CategoryVideoStreaming,
+				Action:      ActionAllow,
+			},
+			Format: SourceFormatDomains,
+		},
 		// gambling
+		{
+			List: List{
+				Name:        "beacon-dns-lists:allowlists:gambling",
+				Description: "Blocklists & allowlists for Beacon DNS",
+				URL:         "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/allowlists/gambling",
+				Category:    CategoryGambling,
+				Action:      ActionAllow,
+			},
+			Format: SourceFormatDomains,
+		},
 		// gaming
+		{
+			List: List{
+				Name:        "beacon-dns-lists:allowlists:gaming",
+				Description: "Blocklists & allowlists for Beacon DNS",
+				URL:         "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/allowlists/gaming",
+				Category:    CategoryGaming,
+				Action:      ActionAllow,
+			},
+			Format: SourceFormatDomains,
+		},
 		// piracy, torrents
+		{
+			List: List{
+				Name:        "beacon-dns-lists:allowlists:piracy",
+				Description: "Blocklists & allowlists for Beacon DNS",
+				URL:         "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/allowlists/piracy",
+				Category:    CategoryPiracy,
+				Action:      ActionAllow,
+			},
+			Format: SourceFormatDomains,
+		},
 		// drugs
+		{
+			List: List{
+				Name:        "beacon-dns-lists:allowlists:drugs",
+				Description: "Blocklists & allowlists for Beacon DNS",
+				URL:         "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/allowlists/drugs",
+				Category:    CategoryDrugs,
+				Action:      ActionAllow,
+			},
+			Format: SourceFormatDomains,
+		},
 	}
 
 	return append(blocklists, allowlists...)
