@@ -1,8 +1,6 @@
 package api
 
 import (
-	"html/template"
-	"io"
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
@@ -22,11 +20,6 @@ func New(addr string) {
 	e := echo.New()
 
 	e.Validator = &customValidator{validator: validator.New()}
-
-	renderer := &TemplateRenderer{
-		templates: template.Must(template.ParseGlob("web/template/*.html")),
-	}
-	e.Renderer = renderer
 
 	e.GET("/", home)
 
@@ -54,13 +47,4 @@ func (cv *customValidator) Validate(i interface{}) error {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 	return nil
-}
-
-// template renderer
-type TemplateRenderer struct {
-	templates *template.Template
-}
-
-func (t *TemplateRenderer) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
-	return t.templates.ExecuteTemplate(w, name, data)
 }

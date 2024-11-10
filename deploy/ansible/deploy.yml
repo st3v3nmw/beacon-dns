@@ -1,0 +1,85 @@
+- name: Deploy Beacon DNS
+  hosts: beacons
+  tasks:
+    - name: Install required packages
+      community.general.apk:
+        name:
+          - python3
+          - sudo
+          - gcompat
+          - iptables
+          - ip6tables
+
+    - name: Copy binary
+      copy:
+        src: ../../beacon
+        dest: /usr/local/bin/
+        mode: '0755'
+
+    - name: Create directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0750'
+      with_items:
+        - /var/lib/beacon/
+        - /etc/beacon/
+
+    - name: Create files
+      file:
+        path: "{{ item }}"
+        state: touch
+        mode: '0644'
+      with_items:
+        - /run/beacon.pid
+        - /var/log/beacon.log
+
+    - name: Create environment file
+      copy:
+        content: |
+          BEACON_API_PORT=443
+          BEACON_DNS_PORT=53
+          BEACON_DATA_DIR=/var/lib/beacon/
+          BEACON_BUCKET_NAME={{ lookup('env', 'BEACON_BUCKET_NAME') }}
+          BEACON_BUCKET_KEY_ID={{ lookup('env', 'BEACON_BUCKET_KEY_ID') }}
+          BEACON_BUCKET_KEY={{ lookup('env', 'BEACON_BUCKET_KEY') }}
+          BEACON_BUCKET_ENDPOINT={{ lookup('env', 'BEACON_BUCKET_ENDPOINT') }}
+          BEACON_BUCKET_REGION={{ lookup('env', 'BEACON_BUCKET_REGION') }}
+        dest: /etc/beacon/.env
+        mode: '0600'
+
+    - name: Install service file
+      copy:
+        content: |
+          #!/sbin/openrc-run
+
+          name="beacon"
+          description="Beacon DNS Service"
+          command="/usr/local/bin/beacon"
+          command_user="root:root"
+          directory="/var/lib/beacon"
+          supervisor="supervise-daemon"
+          pidfile="/run/beacon.pid"
+          output_log="/var/log/beacon.log"
+          error_log="/var/log/beacon.log"
+
+          depend() {
+            need net
+            after firewall
+          }
+
+          start_pre() {
+            # Load environment variables
+            set -a
+            . /etc/beacon/.env
+            set +a
+          }
+        dest: /etc/init.d/beacon
+        mode: '0755'
+
+    - name: Enable and start service
+      service:
+        name: beacon
+        enabled: yes
+        state: restarted
+        use: rc-service

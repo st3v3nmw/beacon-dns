@@ -94,3 +94,7 @@ func processDoHJson(c echo.Context, filter *dns.Filter) error {
 
 	return c.JSON(http.StatusOK, response)
 }
+
+func home(c echo.Context) error {
+	return c.String(http.StatusOK, "Beacon DNS over Http")
+}

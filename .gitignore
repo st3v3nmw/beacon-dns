@@ -29,10 +29,5 @@ go.work.sum
 # data
 .data
 
-# Linuxkit
-image-cmdline
-image-initrd.img
-image-kernel
-image-state/
-image-bios.img
-image-efi.iso
+# IDEs
+.vscode/

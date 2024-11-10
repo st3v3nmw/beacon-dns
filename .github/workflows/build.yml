@@ -2,8 +2,8 @@ name: build
 
 on:
   push:
-    branches:
-      - release
+    tags:
+      - "*"
 
 jobs:
   docker:

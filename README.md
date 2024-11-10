@@ -100,6 +100,28 @@ $ docker build .
 $ linuxkit build --format iso-efi image.yml
 ```
 
+## Setting up new nodes
+
+--> move to separate doc
+
+```console
+$ apk add iptables
+$ apk add ip6tables
+
+# Set iptables & ip6tables to start on reboot
+$ rc-update add iptables
+$ rc-update add ip6tables
+
+# Update rules
+$ sudo iptables -A INPUT -p tcp --dport 443 -j ACCEPT
+$ sudo iptables -A INPUT -p udp --dport 53 -j ACCEPT
+$ sudo iptables -A INPUT -p tcp --dport 853 -j ACCEPT
+
+# Write the firewall rules to disk
+$ rc-service iptables save
+$ rc-service ip6tables save
+```
+
 ## Contributing
 
 Code, issues, reporting false positives...
