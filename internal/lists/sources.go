@@ -74,7 +74,7 @@ func getSources() []Source {
 		},
 		{
 			List: List{
-				Name:        "firebog:Easyprivacy",
+				Name:        "firebog:easy-privacy",
 				Description: "Block tracking and improve end user privacy",
 				URL:         "https://v.firebog.net/hosts/Easyprivacy.txt",
 				Category:    CategoryAds,
