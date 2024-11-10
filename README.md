@@ -17,7 +17,6 @@ The project is in beta and evolving fast. While core functionality is working, I
 - [ ] DNSSEC Validation
 - [x] Private! IPs & DNS queries are NOT logged & accounts are not required.
 
-- create string filters like "family", etc
 - linuxkit!
 - rate limiting
 - rotate providers
