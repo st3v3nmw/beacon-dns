@@ -82,8 +82,7 @@ func processDoHJson(c echo.Context, filter *dns.Filter) error {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
-	err = c.Validate(*qn)
-	if err != nil {
+	if err := c.Validate(*qn); err != nil {
 		return err
 	}
 

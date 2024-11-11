@@ -19,6 +19,7 @@ The project is in beta and evolving fast. While core functionality is working, I
 
 - rate limiting
 - rotate providers
+- string presets
 
 ## Usage
 

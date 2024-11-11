@@ -8,6 +8,6 @@ run:
 
 .PHONY: deploy
 deploy:
-	go build ./cmd/beacon
+	go GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" ./cmd/beacon
 	source .env.prod
 	ansible-playbook -i deploy/ansible/inventory.yml deploy/ansible/deploy.yml -u root

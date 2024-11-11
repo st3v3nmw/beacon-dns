@@ -34,12 +34,10 @@ func parseDomains(data []byte, format SourceFormat) []string {
 		if format == SourceFormatDomains {
 			domain = line
 		} else {
-
 			domain = strings.Fields(line)[1]
 		}
 
-		err := validate.Var(domain, "fqdn")
-		if err == nil {
+		if err := validate.Var(domain, "fqdn"); err == nil {
 			domains = append(domains, domain)
 		}
 	}

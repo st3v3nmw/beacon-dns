@@ -12,16 +12,14 @@ var (
 )
 
 func Sync(ctx context.Context) error {
-	err := syncBlockListsWithSources()
-	if err != nil {
+	if err := syncBlockListsWithSources(); err != nil {
 		return err
 	}
 
 	ticker := time.NewTicker(24 * time.Hour)
 	go func() {
 		for range ticker.C {
-			err := syncBlockListsWithSources()
-			if err != nil {
+			if err := syncBlockListsWithSources(); err != nil {
 				fmt.Println(err)
 			}
 		}

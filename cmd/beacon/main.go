@@ -28,9 +28,8 @@ func main() {
 
 	// Load env
 	var config Config
-	if err := env.ParseWithOptions(&config, env.Options{
-		Prefix: "BEACON_",
-	}); err != nil {
+	envOpts := env.Options{Prefix: "BEACON_"}
+	if err := env.ParseWithOptions(&config, envOpts); err != nil {
 		log.Fatal(err)
 	}
 
@@ -52,21 +51,18 @@ func main() {
 	lists.DataDir = config.DataDir
 	os.MkdirAll(lists.DataDir, 0755)
 
-	err = lists.Sync(context.Background())
-	if err != nil {
+	if err := lists.Sync(context.Background()); err != nil {
 		log.Fatal(err)
 	}
 
 	fmt.Println("Loading blocklists into memory...")
-	err = dns.LoadListsToMemory()
-	if err != nil {
+	if err := dns.LoadListsToMemory(); err != nil {
 		log.Fatal(err)
 	}
 
 	// Cache
 	fmt.Println("Setting up cache...")
-	err = dns.NewCache()
-	if err != nil {
+	if err := dns.NewCache(); err != nil {
 		log.Fatal(err)
 	}
 	defer dns.Cache.Close()

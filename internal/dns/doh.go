@@ -32,7 +32,6 @@ func (f *QType) UnmarshalJSON(data []byte) error {
 
 	*f = QType(uint16Val)
 	return nil
-
 }
 
 // TODO: Work on DO & CD. They don't do anything right now.
@@ -142,8 +141,7 @@ func HandleDoHReqJson(rq *Request, filter *Filter) (*Response, error) {
 
 func HandleDoHReqWire(query []byte, filter *Filter) ([]byte, error) {
 	r := &dnslib.Msg{}
-	err := r.Unpack(query)
-	if err != nil {
+	if err := r.Unpack(query); err != nil {
 		return nil, err
 	}
 

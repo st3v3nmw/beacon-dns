@@ -131,8 +131,7 @@ func newFromBucket(filename string) (*List, error) {
 	}
 	defer reader.Close()
 
-	_, err = reader.Stat()
-	if err != nil {
+	if _, err := reader.Stat(); err != nil {
 		return nil, fmt.Errorf("failed to get object metadata: %v", err)
 	}
 
