@@ -1,0 +1,75 @@
+- name: Deploy Beacon DNS
+  hosts: "{{ hosts }}"
+  remote_user: "{{ user }}"
+  tasks:
+    - name: Install required packages
+      apt:
+        name:
+          - python3
+        state: present
+        update_cache: yes
+
+    - name: Copy binary
+      copy:
+        src: ../../beacon
+        dest: /usr/local/bin/
+        mode: "0755"
+
+    - name: Create directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0750"
+      loop:
+        - /var/lib/beacon/
+        - /etc/beacon/
+
+    - name: Create files
+      file:
+        path: "{{ item }}"
+        state: touch
+        mode: "0644"
+      loop:
+        - /run/beacon.pid
+        - /var/log/beacon.log
+
+    - name: Create environment file
+      copy:
+        content: |
+          BEACON_API_PORT=80
+          BEACON_DNS_PORT=53
+          BEACON_DATA_DIR=/var/lib/beacon/
+        dest: /etc/beacon/.env
+        mode: "0600"
+
+    - name: Install systemd service file
+      copy:
+        content: |
+          [Unit]
+          Description=Beacon DNS Service
+          After=network.target
+
+          [Service]
+          EnvironmentFile=/etc/beacon/.env
+          ExecStart=/usr/local/bin/beacon
+          WorkingDirectory=/var/lib/beacon
+          User=root
+          PIDFile=/run/beacon.pid
+          StandardOutput=file:/var/log/beacon.log
+          StandardError=file:/var/log/beacon.log
+          Restart=on-failure
+
+          [Install]
+          WantedBy=multi-user.target
+        dest: /etc/systemd/system/beacon.service
+        mode: "0644"
+
+    - name: Reload systemd daemon
+      systemd:
+        daemon_reload: yes
+
+    - name: Enable and start beacon service
+      systemd:
+        name: beacon
+        enabled: yes
+        state: restarted

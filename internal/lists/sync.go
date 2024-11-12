@@ -38,7 +38,7 @@ func syncBlockListsWithSources() error {
 		filename := source.filename()
 
 		var list *List
-		fetchNewList := true
+		fetchFromSource := true
 		if source.existsOnFs() {
 			list, err = newFromFs(filename)
 			if err != nil {
@@ -46,33 +46,23 @@ func syncBlockListsWithSources() error {
 				continue
 			}
 
-			fetchNewList = now.Sub(list.LastSync) > 24*time.Hour
+			fetchFromSource = now.Sub(list.LastSync) > 24*time.Hour
 		}
 
-		if fetchNewList {
-			fmt.Println(" \tUpdating local...")
-			listInfo, err := statObject(filename)
-			if err == nil && now.Sub(listInfo.LastModified) < 24*time.Hour {
-				fmt.Println(" \tFetching from bucket...")
-				list, err = newFromBucket(filename)
-			} else {
-				fmt.Println(" \tFetching from upstream...")
-				list, err = newFromSource(source)
-				if err != nil {
-					fmt.Printf(" \tGot error while syncing %s: %v\n", source.Name, err)
-					continue
-				}
-
-				fmt.Println(" \tUpdating copy in bucket...")
-				err = list.saveInBucket()
-			}
-
+		if fetchFromSource {
+			fmt.Println(" \tFetching from upstream...")
+			list, err = newFromSource(source)
 			if err != nil {
 				fmt.Printf(" \tGot error while syncing %s: %v\n", source.Name, err)
 				continue
 			}
 
-			list.saveInFs()
+			fmt.Println(" \tUpdating local copy...")
+			err = list.saveInFs()
+			if err != nil {
+				fmt.Printf(" \tError while saving locally %s: %v\n", source.Name, err)
+				continue
+			}
 		}
 
 		persisted[list.Name] = list

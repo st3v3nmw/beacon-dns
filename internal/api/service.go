@@ -23,9 +23,6 @@ func New(addr string) {
 
 	e.GET("/", home)
 
-	e.GET("/:filter/dns-query", queryDNS)
-	e.POST("/:filter/dns-query", queryDNS)
-
 	API = &APIService{
 		address: addr,
 		echo:    e,
@@ -46,4 +43,8 @@ func (cv *customValidator) Validate(i interface{}) error {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 	return nil
+}
+
+func home(c echo.Context) error {
+	return c.String(http.StatusOK, "Beacon DNS API")
 }

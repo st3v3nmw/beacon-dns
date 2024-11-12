@@ -13,14 +13,9 @@ import (
 )
 
 type Config struct {
-	ApiPort        string `env:"API_PORT,notEmpty"`
-	DnsPort        string `env:"DNS_PORT,notEmpty"`
-	DataDir        string `env:"DATA_DIR,notEmpty"`
-	BucketName     string `env:"BUCKET_NAME,notEmpty"`
-	BucketKeyId    string `env:"BUCKET_KEY_ID,notEmpty"`
-	BucketKey      string `env:"BUCKET_KEY,notEmpty"`
-	BucketEndpoint string `env:"BUCKET_ENDPOINT,notEmpty"`
-	BucketRegion   string `env:"BUCKET_REGION,notEmpty"`
+	ApiPort string `env:"API_PORT,notEmpty"`
+	DnsPort string `env:"DNS_PORT,notEmpty"`
+	DataDir string `env:"DATA_DIR,notEmpty"`
 }
 
 func main() {
@@ -33,22 +28,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Object Storage
-	fmt.Println("Connecting to object storage...")
-	lists.BucketName = config.BucketName
-	bucketKeyId := config.BucketKeyId
-	bucketKey := config.BucketKey
-	bucketEndpoint := config.BucketEndpoint
-	bucketRegion := config.BucketRegion
-
-	err := lists.NewMinioClient(bucketEndpoint, bucketKeyId, bucketKey, bucketRegion)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	// Load lists
 	fmt.Println("Syncing blocklists with upstream sources...")
-	lists.DataDir = config.DataDir
+	lists.DataDir = fmt.Sprintf("%s/%s", config.DataDir, "lists")
 	os.MkdirAll(lists.DataDir, 0755)
 
 	if err := lists.Sync(context.Background()); err != nil {

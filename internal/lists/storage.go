@@ -1,53 +1,13 @@
 package lists
 
 import (
-	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"time"
-
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
 )
-
-var (
-	Minio      *minio.Client
-	BucketName string
-)
-
-func NewMinioClient(endpoint, keyId, key, region string) (err error) {
-	opts := &minio.Options{
-		Creds:  credentials.NewStaticV4(keyId, key, ""),
-		Region: region,
-		Secure: true,
-	}
-	Minio, err = minio.New(endpoint, opts)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func statObject(filename string) (*minio.ObjectInfo, error) {
-	reader, err := Minio.GetObject(
-		context.Background(),
-		BucketName,
-		filename,
-		minio.GetObjectOptions{},
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer reader.Close()
-
-	info, err := reader.Stat()
-	return &info, err
-}
 
 type Action string
 
@@ -119,33 +79,6 @@ func newFromFs(filename string) (*List, error) {
 	return &list, err
 }
 
-func newFromBucket(filename string) (*List, error) {
-	reader, err := Minio.GetObject(
-		context.Background(),
-		BucketName,
-		filename,
-		minio.GetObjectOptions{},
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer reader.Close()
-
-	if _, err := reader.Stat(); err != nil {
-		return nil, fmt.Errorf("failed to get object metadata: %v", err)
-	}
-
-	data, err := io.ReadAll(reader)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read object data: %v", err)
-	}
-
-	var list List
-	err = json.Unmarshal(data, &list)
-	list.LastSync = time.Now()
-	return &list, err
-}
-
 func (l *List) filename() string {
 	return fmt.Sprintf("%s.json", l.Name)
 }
@@ -164,22 +97,4 @@ func (l *List) saveInFs() error {
 
 	path := DataDir + l.filename()
 	return os.WriteFile(path, data, 0755)
-}
-
-func (l *List) saveInBucket() error {
-	data, err := json.Marshal(l)
-	if err != nil {
-		return err
-	}
-
-	opts := minio.PutObjectOptions{ContentType: "application/json"}
-	_, err = Minio.PutObject(
-		context.Background(),
-		BucketName,
-		l.filename(),
-		bytes.NewReader(data),
-		int64(len(data)),
-		opts,
-	)
-	return err
 }
