@@ -38,7 +38,7 @@
         content: |
           BEACON_API_PORT=80
           BEACON_DNS_PORT=53
-          BEACON_DATA_DIR=/var/lib/beacon/
+          BEACON_DATA_DIR=/var/lib/beacon
         dest: /etc/beacon/.env
         mode: "0600"
 

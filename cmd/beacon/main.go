@@ -37,11 +37,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Println("Loading blocklists into memory...")
-	if err := dns.LoadListsToMemory(); err != nil {
-		log.Fatal(err)
-	}
-
 	// Cache
 	fmt.Println("Setting up cache...")
 	if err := dns.NewCache(); err != nil {

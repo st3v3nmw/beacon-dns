@@ -1,9 +1,16 @@
 package lists
 
 import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
 	"strings"
+	"time"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/st3v3nmw/beacon/internal/models"
 )
 
 type SourceFormat string
@@ -14,11 +21,61 @@ const (
 )
 
 type Source struct {
-	List
-	Format SourceFormat
+	Name     string          `json:"name"`
+	URL      string          `json:"url"`
+	Action   models.Action   `json:"action"`
+	Category models.Category `json:"category"`
+	LastSync time.Time       `json:"last_sync"`
+	Domains  []string        `json:"domains"`
+	Format   SourceFormat    `json:"-"`
 }
 
-func parseDomains(data []byte, format SourceFormat) []string {
+func (s *Source) path() string {
+	return fmt.Sprintf("%s/%s.json", DataDir, s.Name)
+}
+
+func (s *Source) existsOnFs() bool {
+	_, err := os.Stat(s.path())
+	return err == nil
+}
+
+func (s *Source) readFromFs() error {
+	data, err := os.ReadFile(s.path())
+	if err != nil {
+		return err
+	}
+
+	return json.Unmarshal(data, &s)
+}
+
+func (s *Source) saveToFs() error {
+	data, err := json.MarshalIndent(s, "", " ")
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(s.path(), data, 0755)
+}
+
+func (s *Source) fetchFromUpstream() error {
+	resp, err := http.Get(s.URL)
+	if err != nil {
+		return fmt.Errorf("failed to fetch source: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %v", err)
+	}
+
+	s.LastSync = time.Now().UTC()
+	s.Domains = s.parseDomains(body)
+
+	return nil
+}
+
+func (s *Source) parseDomains(data []byte) []string {
 	content := string(data)
 	lines := strings.Split(content, "\n")
 
@@ -31,7 +88,7 @@ func parseDomains(data []byte, format SourceFormat) []string {
 		}
 
 		var domain string
-		if format == SourceFormatDomains {
+		if s.Format == SourceFormatDomains {
 			domain = line
 		} else {
 			domain = strings.Fields(line)[1]
@@ -51,290 +108,237 @@ func getSources() []Source {
 	blocklists := []Source{
 		// ads, trackers
 		{
-			List: List{
-				Name:        "olbat:ut1-blacklists:publicite",
-				Description: "Collection of websites blacklists managed by the Université Toulouse Capitole",
-				URL:         "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/publicite/domains",
-				Category:    CategoryAds,
-				Action:      ActionBlock,
-			},
-			Format: SourceFormatDomains,
+
+			Name:     "olbat:ut1-blacklists:publicite",
+			URL:      "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/publicite/domains",
+			Category: models.CategoryAds,
+			Action:   models.ActionBlock,
+			Format:   SourceFormatDomains,
 		},
 		{
-			List: List{
-				Name:        "peter-lowe:adservers",
-				Description: "Blocklist for use with hosts files to block ads, trackers, and other nasty things",
-				URL:         "https://pgl.yoyo.org/adservers/serverlist.php?hostformat=hosts",
-				Category:    CategoryAds,
-				Action:      ActionBlock,
-			},
-			Format: SourceFormatHosts,
+
+			Name:     "peter-lowe:adservers",
+			URL:      "https://pgl.yoyo.org/adservers/serverlist.php?hostformat=hosts",
+			Category: models.CategoryAds,
+			Action:   models.ActionBlock,
+			Format:   SourceFormatHosts,
 		},
 		{
-			List: List{
-				Name:        "firebog:easy-privacy",
-				Description: "Block tracking and improve end user privacy",
-				URL:         "https://v.firebog.net/hosts/Easyprivacy.txt",
-				Category:    CategoryAds,
-				Action:      ActionBlock,
-			},
-			Format: SourceFormatDomains,
+
+			Name:     "firebog:easy-privacy",
+			URL:      "https://v.firebog.net/hosts/Easyprivacy.txt",
+			Category: models.CategoryAds,
+			Action:   models.ActionBlock,
+			Format:   SourceFormatDomains,
 		},
 		// malware, ransomware, phishing, cryptojacking, stalkerware
 		{
-			List: List{
-				Name:        "olbat:ut1-blacklists:malware",
-				Description: "Collection of websites blacklists managed by the Université Toulouse Capitole",
-				URL:         "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/malware/domains",
-				Category:    CategoryMalware,
-				Action:      ActionBlock,
-			},
-			Format: SourceFormatDomains,
+
+			Name:     "olbat:ut1-blacklists:malware",
+			URL:      "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/malware/domains",
+			Category: models.CategoryMalware,
+			Action:   models.ActionBlock,
+			Format:   SourceFormatDomains,
 		},
 		{
-			List: List{
-				Name:        "olbat:ut1-blacklists:phishing",
-				Description: "Collection of websites blacklists managed by the Université Toulouse Capitole",
-				URL:         "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/phishing/domains",
-				Category:    CategoryMalware,
-				Action:      ActionBlock,
-			},
-			Format: SourceFormatDomains,
+
+			Name:     "olbat:ut1-blacklists:phishing",
+			URL:      "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/phishing/domains",
+			Category: models.CategoryMalware,
+			Action:   models.ActionBlock,
+			Format:   SourceFormatDomains,
 		},
 		{
-			List: List{
-				Name:        "olbat:ut1-blacklists:cryptojacking",
-				Description: "Collection of websites blacklists managed by the Université Toulouse Capitole",
-				URL:         "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/cryptojacking/domains",
-				Category:    CategoryMalware,
-				Action:      ActionBlock,
-			},
-			Format: SourceFormatDomains,
+
+			Name:     "olbat:ut1-blacklists:cryptojacking",
+			URL:      "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/cryptojacking/domains",
+			Category: models.CategoryMalware,
+			Action:   models.ActionBlock,
+			Format:   SourceFormatDomains,
 		},
 		// adult content
 		{
-			List: List{
-				Name:        "sinfonietta:hostfiles:pornography-hosts",
-				Description: "A collection of category-specific host files",
-				URL:         "https://raw.githubusercontent.com/Sinfonietta/hostfiles/master/pornography-hosts",
-				Category:    CategoryAdult,
-				Action:      ActionBlock,
-			},
-			Format: SourceFormatHosts,
+
+			Name:     "sinfonietta:hostfiles:pornography-hosts",
+			URL:      "https://raw.githubusercontent.com/Sinfonietta/hostfiles/master/pornography-hosts",
+			Category: models.CategoryAdult,
+			Action:   models.ActionBlock,
+			Format:   SourceFormatHosts,
 		},
 		{
-			List: List{
-				Name:        "steven-black:hosts:porn-only",
-				Description: "Consolidating and extending hosts files from several well-curated sources",
-				URL:         "https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn-only/hosts",
-				Category:    CategoryAdult,
-				Action:      ActionBlock,
-			},
-			Format: SourceFormatHosts,
+
+			Name:     "steven-black:hosts:porn-only",
+			URL:      "https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn-only/hosts",
+			Category: models.CategoryAdult,
+			Action:   models.ActionBlock,
+			Format:   SourceFormatHosts,
 		},
 		// dating
 		{
-			List: List{
-				Name:        "olbat:ut1-blacklists:dating",
-				Description: "Collection of websites blacklists managed by the Université Toulouse Capitole",
-				URL:         "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/dating/domains",
-				Category:    CategoryDating,
-				Action:      ActionBlock,
-			},
-			Format: SourceFormatDomains,
+
+			Name:     "olbat:ut1-blacklists:dating",
+			URL:      "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/dating/domains",
+			Category: models.CategoryDating,
+			Action:   models.ActionBlock,
+			Format:   SourceFormatDomains,
 		},
 		// social media
 		{
-			List: List{
-				Name:        "olbat:ut1-blacklists:social_networks",
-				Description: "Collection of websites blacklists managed by the Université Toulouse Capitole",
-				URL:         "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/social_networks/domains",
-				Category:    CategorySocialMedia,
-				Action:      ActionBlock,
-			},
-			Format: SourceFormatDomains,
+
+			Name:     "olbat:ut1-blacklists:social_networks",
+			URL:      "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/social_networks/domains",
+			Category: models.CategorySocialMedia,
+			Action:   models.ActionBlock,
+			Format:   SourceFormatDomains,
 		},
 		// video streaming platforms
 		{
-			List: List{
-				Name:        "beacon-dns-lists:blocklists:video-streaming",
-				Description: "Blocklists & allowlists for Beacon DNS",
-				URL:         "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/blocklists/video-streaming",
-				Category:    CategoryVideoStreaming,
-				Action:      ActionBlock,
-			},
-			Format: SourceFormatDomains,
+
+			Name:     "beacon-dns-lists:blocklists:video-streaming",
+			URL:      "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/blocklists/video-streaming",
+			Category: models.CategoryVideoStreaming,
+			Action:   models.ActionBlock,
+			Format:   SourceFormatDomains,
 		},
 		// gambling
 		{
-			List: List{
-				Name:        "olbat:ut1-blacklists:gambling",
-				Description: "Collection of websites blacklists managed by the Université Toulouse Capitole",
-				URL:         "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/gambling/domains",
-				Category:    CategoryGambling,
-				Action:      ActionBlock,
-			},
-			Format: SourceFormatDomains,
+
+			Name:     "olbat:ut1-blacklists:gambling",
+			URL:      "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/gambling/domains",
+			Category: models.CategoryGambling,
+			Action:   models.ActionBlock,
+			Format:   SourceFormatDomains,
 		},
 		{
-			List: List{
-				Name:        "sinfonietta:hostfiles:gambling-hosts",
-				Description: "A collection of category-specific host files",
-				URL:         "https://raw.githubusercontent.com/Sinfonietta/hostfiles/master/gambling-hosts",
-				Category:    CategoryGambling,
-				Action:      ActionBlock,
-			},
-			Format: SourceFormatHosts,
+
+			Name:     "sinfonietta:hostfiles:gambling-hosts",
+			URL:      "https://raw.githubusercontent.com/Sinfonietta/hostfiles/master/gambling-hosts",
+			Category: models.CategoryGambling,
+			Action:   models.ActionBlock,
+			Format:   SourceFormatHosts,
 		},
 		// gaming
 		{
-			List: List{
-				Name:        "olbat:ut1-blacklists:games",
-				Description: "Collection of websites blacklists managed by the Université Toulouse Capitole",
-				URL:         "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/games/domains",
-				Category:    CategoryGaming,
-				Action:      ActionBlock,
-			},
-			Format: SourceFormatDomains,
+
+			Name:     "olbat:ut1-blacklists:games",
+			URL:      "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/games/domains",
+			Category: models.CategoryGaming,
+			Action:   models.ActionBlock,
+			Format:   SourceFormatDomains,
 		},
 		// piracy, torrents
 		{
-			List: List{
-				Name:        "hagezi:dns-blocklists:anti.piracy-onlydomains",
-				Description: "DNS-Blocklists: For a better internet - keep the internet clean!",
-				URL:         "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/anti.piracy-onlydomains.txt",
-				Category:    CategoryPiracy,
-				Action:      ActionBlock,
-			},
-			Format: SourceFormatDomains,
+
+			Name:     "hagezi:dns-blocklists:anti.piracy-onlydomains",
+			URL:      "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/anti.piracy-onlydomains.txt",
+			Category: models.CategoryPiracy,
+			Action:   models.ActionBlock,
+			Format:   SourceFormatDomains,
 		},
 		// drugs
 		{
-			List: List{
-				Name:        "olbat:ut1-blacklists:drugs",
-				Description: "Collection of websites blacklists managed by the Université Toulouse Capitole",
-				URL:         "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/drogue/domains",
-				Category:    CategoryDrugs,
-				Action:      ActionBlock,
-			},
-			Format: SourceFormatDomains,
+
+			Name:     "olbat:ut1-blacklists:drugs",
+			URL:      "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/drogue/domains",
+			Category: models.CategoryDrugs,
+			Action:   models.ActionBlock,
+			Format:   SourceFormatDomains,
 		},
 	}
 
 	// Allowlists have higher precedence than blocklists
 	// We primarily use blocklists as filters and allowlists to
 	// remove false positives in a category
-	// There should be only one allowlist per category
 	allowlists := []Source{
 		// ads, trackers
 		{
-			List: List{
-				Name:        "beacon-dns-lists:allowlists:ads",
-				Description: "Blocklists & allowlists for Beacon DNS",
-				URL:         "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/allowlists/ads",
-				Category:    CategoryAds,
-				Action:      ActionAllow,
-			},
-			Format: SourceFormatDomains,
+
+			Name:     "beacon-dns-lists:allowlists:ads",
+			URL:      "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/allowlists/ads",
+			Category: models.CategoryAds,
+			Action:   models.ActionAllow,
+			Format:   SourceFormatDomains,
 		},
 		// malware, ransomware, phishing, cryptojacking, stalkerware
 		{
-			List: List{
-				Name:        "beacon-dns-lists:allowlists:malware",
-				Description: "Blocklists & allowlists for Beacon DNS",
-				URL:         "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/allowlists/malware",
-				Category:    CategoryMalware,
-				Action:      ActionAllow,
-			},
-			Format: SourceFormatDomains,
+
+			Name:     "beacon-dns-lists:allowlists:malware",
+			URL:      "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/allowlists/malware",
+			Category: models.CategoryMalware,
+			Action:   models.ActionAllow,
+			Format:   SourceFormatDomains,
 		},
 		// adult content
 		{
-			List: List{
-				Name:        "beacon-dns-lists:allowlists:adult",
-				Description: "Blocklists & allowlists for Beacon DNS",
-				URL:         "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/allowlists/adult",
-				Category:    CategoryAdult,
-				Action:      ActionAllow,
-			},
-			Format: SourceFormatDomains,
+
+			Name:     "beacon-dns-lists:allowlists:adult",
+			URL:      "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/allowlists/adult",
+			Category: models.CategoryAdult,
+			Action:   models.ActionAllow,
+			Format:   SourceFormatDomains,
 		},
 		// dating
 		{
-			List: List{
-				Name:        "beacon-dns-lists:allowlists:dating",
-				Description: "Blocklists & allowlists for Beacon DNS",
-				URL:         "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/allowlists/dating",
-				Category:    CategoryDating,
-				Action:      ActionAllow,
-			},
-			Format: SourceFormatDomains,
+
+			Name:     "beacon-dns-lists:allowlists:dating",
+			URL:      "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/allowlists/dating",
+			Category: models.CategoryDating,
+			Action:   models.ActionAllow,
+			Format:   SourceFormatDomains,
 		},
 		// social media
 		{
-			List: List{
-				Name:        "beacon-dns-lists:allowlists:social-media",
-				Description: "Blocklists & allowlists for Beacon DNS",
-				URL:         "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/allowlists/social-media",
-				Category:    CategorySocialMedia,
-				Action:      ActionAllow,
-			},
-			Format: SourceFormatDomains,
+
+			Name:     "beacon-dns-lists:allowlists:social-media",
+			URL:      "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/allowlists/social-media",
+			Category: models.CategorySocialMedia,
+			Action:   models.ActionAllow,
+			Format:   SourceFormatDomains,
 		},
 		// video streaming platforms
 		{
-			List: List{
-				Name:        "beacon-dns-lists:allowlists:video-streaming",
-				Description: "Blocklists & allowlists for Beacon DNS",
-				URL:         "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/allowlists/video-streaming",
-				Category:    CategoryVideoStreaming,
-				Action:      ActionAllow,
-			},
-			Format: SourceFormatDomains,
+
+			Name:     "beacon-dns-lists:allowlists:video-streaming",
+			URL:      "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/allowlists/video-streaming",
+			Category: models.CategoryVideoStreaming,
+			Action:   models.ActionAllow,
+			Format:   SourceFormatDomains,
 		},
 		// gambling
 		{
-			List: List{
-				Name:        "beacon-dns-lists:allowlists:gambling",
-				Description: "Blocklists & allowlists for Beacon DNS",
-				URL:         "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/allowlists/gambling",
-				Category:    CategoryGambling,
-				Action:      ActionAllow,
-			},
-			Format: SourceFormatDomains,
+
+			Name:     "beacon-dns-lists:allowlists:gambling",
+			URL:      "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/allowlists/gambling",
+			Category: models.CategoryGambling,
+			Action:   models.ActionAllow,
+			Format:   SourceFormatDomains,
 		},
 		// gaming
 		{
-			List: List{
-				Name:        "beacon-dns-lists:allowlists:gaming",
-				Description: "Blocklists & allowlists for Beacon DNS",
-				URL:         "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/allowlists/gaming",
-				Category:    CategoryGaming,
-				Action:      ActionAllow,
-			},
-			Format: SourceFormatDomains,
+
+			Name:     "beacon-dns-lists:allowlists:gaming",
+			URL:      "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/allowlists/gaming",
+			Category: models.CategoryGaming,
+			Action:   models.ActionAllow,
+			Format:   SourceFormatDomains,
 		},
 		// piracy, torrents
 		{
-			List: List{
-				Name:        "beacon-dns-lists:allowlists:piracy",
-				Description: "Blocklists & allowlists for Beacon DNS",
-				URL:         "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/allowlists/piracy",
-				Category:    CategoryPiracy,
-				Action:      ActionAllow,
-			},
-			Format: SourceFormatDomains,
+
+			Name:     "beacon-dns-lists:allowlists:piracy",
+			URL:      "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/allowlists/piracy",
+			Category: models.CategoryPiracy,
+			Action:   models.ActionAllow,
+			Format:   SourceFormatDomains,
 		},
 		// drugs
 		{
-			List: List{
-				Name:        "beacon-dns-lists:allowlists:drugs",
-				Description: "Blocklists & allowlists for Beacon DNS",
-				URL:         "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/allowlists/drugs",
-				Category:    CategoryDrugs,
-				Action:      ActionAllow,
-			},
-			Format: SourceFormatDomains,
+
+			Name:     "beacon-dns-lists:allowlists:drugs",
+			URL:      "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/allowlists/drugs",
+			Category: models.CategoryDrugs,
+			Action:   models.ActionAllow,
+			Format:   SourceFormatDomains,
 		},
 	}
 

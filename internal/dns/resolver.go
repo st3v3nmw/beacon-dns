@@ -5,16 +5,18 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
-	iradix "github.com/hashicorp/go-immutable-radix/v2"
+	"github.com/armon/go-radix"
 	"github.com/maypok86/otter"
 	dnslib "github.com/miekg/dns"
-	"github.com/st3v3nmw/beacon/internal/lists"
+	"github.com/st3v3nmw/beacon/internal/models"
 )
 
 var (
-	root          map[lists.Category]*iradix.Tree[[]Leaf]
+	root          = make(map[models.Category]*radix.Tree)
+	treeMu        sync.RWMutex
 	Cache         otter.CacheWithVariableTTL[string, *dnslib.Msg]
 	defaultDNSTTL uint32 = 300
 )
@@ -33,9 +35,9 @@ func NewCache() error {
 }
 
 type Leaf struct {
-	List     string          `json:"list"`
-	Category *lists.Category `json:"category"`
-	Action   *lists.Action   `json:"action"`
+	List     string           `json:"list"`
+	Category *models.Category `json:"category"`
+	Action   *models.Action   `json:"action"`
 }
 
 // By default, we filter out ads & malware.
@@ -76,21 +78,21 @@ func NewFilterFromStr(filterStr string) (*Filter, error) {
 	}, nil
 }
 
-func (f *Filter) Categories() []lists.Category {
-	categoryMap := map[lists.Category]bool{
-		lists.CategoryAds:            f.Ads,
-		lists.CategoryMalware:        f.Malware,
-		lists.CategoryAdult:          f.Adult,
-		lists.CategoryDating:         f.Dating,
-		lists.CategorySocialMedia:    f.SocialMedia,
-		lists.CategoryVideoStreaming: f.VideoStreaming,
-		lists.CategoryGambling:       f.Gambling,
-		lists.CategoryGaming:         f.Gaming,
-		lists.CategoryPiracy:         f.Piracy,
-		lists.CategoryDrugs:          f.Drugs,
+func (f *Filter) Categories() []models.Category {
+	categoryMap := map[models.Category]bool{
+		models.CategoryAds:            f.Ads,
+		models.CategoryMalware:        f.Malware,
+		models.CategoryAdult:          f.Adult,
+		models.CategoryDating:         f.Dating,
+		models.CategorySocialMedia:    f.SocialMedia,
+		models.CategoryVideoStreaming: f.VideoStreaming,
+		models.CategoryGambling:       f.Gambling,
+		models.CategoryGaming:         f.Gaming,
+		models.CategoryPiracy:         f.Piracy,
+		models.CategoryDrugs:          f.Drugs,
 	}
 
-	categories := make([]lists.Category, 0, 10)
+	categories := make([]models.Category, 0, 10)
 	for category, enabled := range categoryMap {
 		if enabled {
 			categories = append(categories, category)
@@ -100,34 +102,41 @@ func (f *Filter) Categories() []lists.Category {
 	return categories
 }
 
-func LoadListsToMemory() error {
-	root = make(map[lists.Category]*iradix.Tree[[]Leaf])
-	for name, list := range lists.PersistedLists {
-		tree, ok := root[list.Category]
-		if !ok {
-			tree = iradix.New[[]Leaf]()
-		}
+func LoadListToMemory(name string, action models.Action, category models.Category, domains []string) {
+	treeMu.Lock()
+	defer treeMu.Unlock()
 
-		for _, domain := range list.Domains {
-			key := []byte(reverseDomain(domain))
-
-			leaves, _ := tree.Get(key)
-			leaves = append(leaves, Leaf{
-				List:     name,
-				Category: &list.Category,
-				Action:   &list.Action,
-			})
-
-			tree, _, _ = tree.Insert(key, leaves)
-		}
-
-		root[list.Category] = tree
+	tree, ok := root[category]
+	if !ok {
+		tree = radix.New()
 	}
-	return nil
+
+	for _, domain := range domains {
+		key := reverseDomain(domain)
+
+		raw, found := tree.Get(key)
+		var leaves []Leaf
+		if found {
+			leaves = raw.([]Leaf)
+		}
+
+		leaves = append(leaves, Leaf{
+			List:     name,
+			Category: &category,
+			Action:   &action,
+		})
+
+		tree.Insert(key, leaves)
+	}
+
+	root[category] = tree
 }
 
 func isBlocked(domain string, filter *Filter) (bool, []Leaf) {
-	key := []byte(reverseDomain(domain))
+	treeMu.RLock()
+	defer treeMu.RUnlock()
+
+	key := reverseDomain(domain)
 	for _, category := range filter.Categories() {
 		blocked, leaves := isBlockedByCategory(key, domain, category)
 		if blocked {
@@ -137,13 +146,13 @@ func isBlocked(domain string, filter *Filter) (bool, []Leaf) {
 	return false, nil
 }
 
-func isBlockedByCategory(key []byte, domain string, category lists.Category) (bool, []Leaf) {
+func isBlockedByCategory(key string, domain string, category models.Category) (bool, []Leaf) {
 	tree, ok := root[category]
 	if !ok {
 		return false, nil
 	}
 
-	prefix, leaves, found := tree.Root().LongestPrefix(key)
+	prefix, raw, found := tree.LongestPrefix(key)
 	if found {
 		// check that it is indeed a match
 		// in some cases like key = com.serverfault & blocked = com.server
@@ -154,8 +163,9 @@ func isBlockedByCategory(key []byte, domain string, category lists.Category) (bo
 			return false, nil
 		}
 
+		leaves := raw.([]Leaf)
 		for _, leaf := range leaves {
-			if *leaf.Action == lists.ActionAllow {
+			if *leaf.Action == models.ActionAllow {
 				return false, leaves
 			}
 		}

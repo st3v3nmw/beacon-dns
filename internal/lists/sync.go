@@ -4,22 +4,23 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/st3v3nmw/beacon/internal/dns"
 )
 
 var (
-	DataDir        string
-	PersistedLists map[string]*List
+	DataDir string
 )
 
 func Sync(ctx context.Context) error {
-	if err := syncBlockListsWithSources(); err != nil {
+	if err := syncBlockListsWithUpstream(); err != nil {
 		return err
 	}
 
 	ticker := time.NewTicker(24 * time.Hour)
 	go func() {
 		for range ticker.C {
-			if err := syncBlockListsWithSources(); err != nil {
+			if err := syncBlockListsWithUpstream(); err != nil {
 				fmt.Println(err)
 			}
 		}
@@ -28,46 +29,42 @@ func Sync(ctx context.Context) error {
 	return nil
 }
 
-func syncBlockListsWithSources() error {
+func syncBlockListsWithUpstream() error {
 	var err error
-	persisted := map[string]*List{}
-	for _, source := range getSources() {
-		fmt.Printf(" Syncing %s...\n", source.Name)
+	for _, list := range getSources() {
+		fmt.Printf(" Syncing %s...\n", list.Name)
 
 		now := time.Now().UTC()
-		filename := source.filename()
-
-		var list *List
-		fetchFromSource := true
-		if source.existsOnFs() {
-			list, err = newFromFs(filename)
+		fetchFromUpstream := true
+		if list.existsOnFs() {
+			err = list.readFromFs()
 			if err != nil {
-				fmt.Printf(" \tGot error while syncing %s: %v\n", source.Name, err)
+				fmt.Printf(" \tGot error while syncing %s: %v\n", list.Name, err)
 				continue
 			}
 
-			fetchFromSource = now.Sub(list.LastSync) > 24*time.Hour
+			fetchFromUpstream = now.Sub(list.LastSync) > 24*time.Hour
 		}
 
-		if fetchFromSource {
+		if fetchFromUpstream {
 			fmt.Println(" \tFetching from upstream...")
-			list, err = newFromSource(source)
+			err = list.fetchFromUpstream()
 			if err != nil {
-				fmt.Printf(" \tGot error while syncing %s: %v\n", source.Name, err)
+				fmt.Printf(" \tGot error while syncing %s: %v\n", list.Name, err)
 				continue
 			}
 
 			fmt.Println(" \tUpdating local copy...")
-			err = list.saveInFs()
+			err = list.saveToFs()
 			if err != nil {
-				fmt.Printf(" \tError while saving locally %s: %v\n", source.Name, err)
+				fmt.Printf(" \tError while saving locally %s: %v\n", list.Name, err)
 				continue
 			}
 		}
 
-		persisted[list.Name] = list
+		dns.LoadListToMemory(list.Name, list.Action, list.Category, list.Domains)
 	}
 
-	PersistedLists = persisted
+	fmt.Println(" Lists loaded into memory.")
 	return err
 }

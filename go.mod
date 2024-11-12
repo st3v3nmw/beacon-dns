@@ -3,9 +3,9 @@ module github.com/st3v3nmw/beacon
 go 1.23.2
 
 require (
+	github.com/armon/go-radix v1.0.0
 	github.com/caarlos0/env/v11 v11.2.2
 	github.com/go-playground/validator/v10 v10.22.1
-	github.com/hashicorp/go-immutable-radix/v2 v2.1.0
 	github.com/labstack/echo/v4 v4.12.0
 	github.com/maypok86/otter v1.2.3
 	github.com/miekg/dns v1.1.62
@@ -17,7 +17,6 @@ require (
 	github.com/gammazero/deque v0.2.1 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
-	github.com/hashicorp/golang-lru/v2 v2.0.0 // indirect
 	github.com/labstack/gommon v0.4.2 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
