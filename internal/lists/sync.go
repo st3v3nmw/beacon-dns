@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/st3v3nmw/beacon/internal/config"
 	"github.com/st3v3nmw/beacon/internal/dns"
+	"github.com/st3v3nmw/beacon/internal/types"
 )
 
 var (
@@ -31,7 +33,19 @@ func Sync(ctx context.Context) error {
 
 func syncBlockListsWithUpstream() error {
 	var err error
-	for _, list := range getSources() {
+	for _, listConf := range config.All.Sources.Lists {
+		if listConf.Format == types.SourceFormatIps {
+			// TODO: Parse these
+			continue
+		}
+
+		list := Source{
+			Name:       listConf.Name,
+			URL:        listConf.URL,
+			Action:     listConf.Action,
+			Categories: listConf.Categories,
+			Format:     listConf.Format,
+		}
 		fmt.Printf(" Syncing %s...\n", list.Name)
 
 		now := time.Now().UTC()
@@ -62,7 +76,7 @@ func syncBlockListsWithUpstream() error {
 			}
 		}
 
-		dns.LoadListToMemory(list.Name, list.Action, list.Category, list.Domains)
+		dns.LoadListToMemory(list.Name, list.Action, list.Categories, list.Domains)
 	}
 
 	fmt.Println(" Lists loaded into memory.")

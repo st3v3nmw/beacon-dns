@@ -60,7 +60,7 @@ $ docker build .
 --> move to separate doc
 
 ```console
-$ ansible-playbook deploy/ansible/ubuntu.yml --extra-vars "hosts=<ip> user=<user>"
+$ IP="<ip>" USER="<user>" make deploy
 ```
 
 ## Contributing

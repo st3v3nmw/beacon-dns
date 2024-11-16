@@ -6,31 +6,36 @@ import (
 	"log"
 	"os"
 
-	"github.com/caarlos0/env/v11"
 	"github.com/st3v3nmw/beacon/internal/api"
+	"github.com/st3v3nmw/beacon/internal/config"
 	"github.com/st3v3nmw/beacon/internal/dns"
 	"github.com/st3v3nmw/beacon/internal/lists"
 )
 
-type Config struct {
-	ApiPort string `env:"API_PORT,notEmpty"`
-	DnsPort string `env:"DNS_PORT,notEmpty"`
-	DataDir string `env:"DATA_DIR,notEmpty"`
-}
-
 func main() {
 	fmt.Println("Beacon DNS\n==========")
 
-	// Load env
-	var config Config
-	envOpts := env.Options{Prefix: "BEACON_"}
-	if err := env.ParseWithOptions(&config, envOpts); err != nil {
+	// Read config
+	configFile, err := mustGetEnv("CONFIG_FILE")
+	if err != nil {
 		log.Fatal(err)
 	}
 
+	err = config.Read(configFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(config.All)
+
 	// Load lists
 	fmt.Println("Syncing blocklists with upstream sources...")
-	lists.DataDir = fmt.Sprintf("%s/%s", config.DataDir, "lists")
+	dataDir, err := mustGetEnv("DATA_DIR")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	lists.DataDir = fmt.Sprintf("%s/%s", dataDir, "lists")
 	os.MkdirAll(lists.DataDir, 0755)
 
 	if err := lists.Sync(context.Background()); err != nil {
@@ -46,7 +51,7 @@ func main() {
 
 	// UDP DNS service
 	fmt.Println("Setting up UDP DNS service...")
-	dnsAddr := fmt.Sprintf(":%s", config.DnsPort)
+	dnsAddr := fmt.Sprintf(":%d", config.All.DNS.Port)
 
 	dns.NewUDPServer(dnsAddr)
 
@@ -58,8 +63,21 @@ func main() {
 
 	// API
 	fmt.Println("Starting API service...")
-	apiAddr := fmt.Sprintf(":%s", config.ApiPort)
+	apiAddr := fmt.Sprintf(":%d", config.All.API.Port)
 
 	api.New(apiAddr)
-	api.Start()
+	err = api.Start()
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func mustGetEnv(envVar string) (string, error) {
+	fullEnvVar := fmt.Sprintf("BEACON_%s", envVar)
+	value, ok := os.LookupEnv(fullEnvVar)
+	if !ok {
+		return "", fmt.Errorf("env var not set: %s", fullEnvVar)
+	}
+
+	return value, nil
 }

@@ -22,9 +22,11 @@ beacon
 go.work
 go.work.sum
 
-# env file
+# config
 .env
 .env.prod
+config.yml
+config.yaml
 
 # data
 .data

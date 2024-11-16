@@ -38,8 +38,6 @@ func handleUDPRequest(w dnslib.ResponseWriter, r *dnslib.Msg) {
 
 func processMsg(r *dnslib.Msg, filter *Filter) *dnslib.Msg {
 	if len(r.Question) == 0 {
-		// no question asked
-		// TODO: Test how or when this occurs
 		return nil
 	}
 

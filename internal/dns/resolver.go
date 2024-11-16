@@ -11,11 +11,12 @@ import (
 	"github.com/armon/go-radix"
 	"github.com/maypok86/otter"
 	dnslib "github.com/miekg/dns"
-	"github.com/st3v3nmw/beacon/internal/models"
+	"github.com/st3v3nmw/beacon/internal/config"
+	"github.com/st3v3nmw/beacon/internal/types"
 )
 
 var (
-	root          = make(map[models.Category]*radix.Tree)
+	root          = make(map[types.Category]*radix.Tree)
 	treeMu        sync.RWMutex
 	Cache         otter.CacheWithVariableTTL[string, *dnslib.Msg]
 	defaultDNSTTL uint32 = 300
@@ -34,10 +35,10 @@ func NewCache() error {
 	return nil
 }
 
-type Leaf struct {
-	List     string           `json:"list"`
-	Category *models.Category `json:"category"`
-	Action   *models.Action   `json:"action"`
+type Rule struct {
+	List     string          `json:"list"`
+	Category *types.Category `json:"category"`
+	Action   *types.Action   `json:"action"`
 }
 
 // By default, we filter out ads & malware.
@@ -78,21 +79,21 @@ func NewFilterFromStr(filterStr string) (*Filter, error) {
 	}, nil
 }
 
-func (f *Filter) Categories() []models.Category {
-	categoryMap := map[models.Category]bool{
-		models.CategoryAds:            f.Ads,
-		models.CategoryMalware:        f.Malware,
-		models.CategoryAdult:          f.Adult,
-		models.CategoryDating:         f.Dating,
-		models.CategorySocialMedia:    f.SocialMedia,
-		models.CategoryVideoStreaming: f.VideoStreaming,
-		models.CategoryGambling:       f.Gambling,
-		models.CategoryGaming:         f.Gaming,
-		models.CategoryPiracy:         f.Piracy,
-		models.CategoryDrugs:          f.Drugs,
+func (f *Filter) Categories() []types.Category {
+	categoryMap := map[types.Category]bool{
+		types.CategoryAds:            f.Ads,
+		types.CategoryMalware:        f.Malware,
+		types.CategoryAdult:          f.Adult,
+		types.CategoryDating:         f.Dating,
+		types.CategorySocialMedia:    f.SocialMedia,
+		types.CategoryVideoStreaming: f.VideoStreaming,
+		types.CategoryGambling:       f.Gambling,
+		types.CategoryGaming:         f.Gaming,
+		types.CategoryPiracy:         f.Piracy,
+		types.CategoryDrugs:          f.Drugs,
 	}
 
-	categories := make([]models.Category, 0, 10)
+	categories := make([]types.Category, 0, 10)
 	for category, enabled := range categoryMap {
 		if enabled {
 			categories = append(categories, category)
@@ -102,51 +103,53 @@ func (f *Filter) Categories() []models.Category {
 	return categories
 }
 
-func LoadListToMemory(name string, action models.Action, category models.Category, domains []string) {
+func LoadListToMemory(name string, action types.Action, categories []types.Category, domains []string) {
 	treeMu.Lock()
 	defer treeMu.Unlock()
 
-	tree, ok := root[category]
-	if !ok {
-		tree = radix.New()
-	}
-
-	for _, domain := range domains {
-		key := reverseDomain(domain)
-
-		raw, found := tree.Get(key)
-		var leaves []Leaf
-		if found {
-			leaves = raw.([]Leaf)
+	for _, category := range categories {
+		tree, ok := root[category]
+		if !ok {
+			tree = radix.New()
 		}
 
-		leaves = append(leaves, Leaf{
-			List:     name,
-			Category: &category,
-			Action:   &action,
-		})
+		for _, domain := range domains {
+			key := reverseDomain(domain)
 
-		tree.Insert(key, leaves)
+			raw, found := tree.Get(key)
+			var rules []Rule
+			if found {
+				rules = raw.([]Rule)
+			}
+
+			rules = append(rules, Rule{
+				List:     name,
+				Category: &category,
+				Action:   &action,
+			})
+
+			tree.Insert(key, rules)
+		}
+
+		root[category] = tree
 	}
-
-	root[category] = tree
 }
 
-func isBlocked(domain string, filter *Filter) (bool, []Leaf) {
+func isBlocked(domain string, filter *Filter) (bool, []Rule) {
 	treeMu.RLock()
 	defer treeMu.RUnlock()
 
 	key := reverseDomain(domain)
 	for _, category := range filter.Categories() {
-		blocked, leaves := isBlockedByCategory(key, domain, category)
+		blocked, rules := isBlockedByCategory(key, domain, category)
 		if blocked {
-			return blocked, leaves
+			return blocked, rules
 		}
 	}
 	return false, nil
 }
 
-func isBlockedByCategory(key string, domain string, category models.Category) (bool, []Leaf) {
+func isBlockedByCategory(key string, domain string, category types.Category) (bool, []Rule) {
 	tree, ok := root[category]
 	if !ok {
 		return false, nil
@@ -163,14 +166,14 @@ func isBlockedByCategory(key string, domain string, category models.Category) (b
 			return false, nil
 		}
 
-		leaves := raw.([]Leaf)
-		for _, leaf := range leaves {
-			if *leaf.Action == models.ActionAllow {
-				return false, leaves
+		rules := raw.([]Rule)
+		for _, rule := range rules {
+			if *rule.Action == types.ActionAllow {
+				return false, rules
 			}
 		}
 
-		return len(leaves) > 0, leaves
+		return len(rules) > 0, rules
 	}
 
 	return false, nil
@@ -189,11 +192,9 @@ func reverseDomain(domain string) string {
 
 func resolve(r *dnslib.Msg) (*dnslib.Msg, error) {
 	qn := r.Question[0]
-	// TODO: include other vars from Request
 	key := fmt.Sprintf("%s-%d-%d", qn.Name, qn.Qtype, qn.Qclass)
 	cached, ok := Cache.Get(key)
 	if ok {
-		// TODO: make sure we're not caching geo-specific results
 		m := cached.Copy()
 		m.Id = r.Id
 		return m, nil
@@ -227,6 +228,8 @@ func minAnswerTtl(cacheTtl uint32, rr []dnslib.RR) uint32 {
 
 func forwardToUpstream(r *dnslib.Msg) (*dnslib.Msg, error) {
 	c := new(dnslib.Client)
-	m, _, err := c.Exchange(r, "1.1.1.1:53")
+	// TODO: Replace this
+	addr := fmt.Sprintf("%s:53", config.All.DNS.Upstreams[0])
+	m, _, err := c.Exchange(r, addr)
 	return m, err
 }

@@ -1,6 +1,5 @@
 - name: Deploy Beacon DNS
-  hosts: "{{ hosts }}"
-  remote_user: "{{ user }}"
+  hosts: all
   tasks:
     - name: Install required packages
       apt:
@@ -22,7 +21,6 @@
         mode: "0750"
       loop:
         - /var/lib/beacon/
-        - /etc/beacon/
 
     - name: Create files
       file:
@@ -31,15 +29,15 @@
         mode: "0644"
       loop:
         - /run/beacon.pid
-        - /var/log/beacon.log
+        - /var/lib/beacon/config.yml
+        - /var/lib/beacon/beacon.log
 
     - name: Create environment file
       copy:
         content: |
-          BEACON_API_PORT=80
-          BEACON_DNS_PORT=53
+          BEACON_CONFIG_FILE=/var/lib/beacon/config.yml
           BEACON_DATA_DIR=/var/lib/beacon
-        dest: /etc/beacon/.env
+        dest: /var/lib/beacon/.env
         mode: "0600"
 
     - name: Install systemd service file
@@ -50,13 +48,13 @@
           After=network.target
 
           [Service]
-          EnvironmentFile=/etc/beacon/.env
+          EnvironmentFile=/var/lib/beacon/.env
           ExecStart=/usr/local/bin/beacon
           WorkingDirectory=/var/lib/beacon
           User=root
           PIDFile=/run/beacon.pid
-          StandardOutput=file:/var/log/beacon.log
-          StandardError=file:/var/log/beacon.log
+          StandardOutput=file:/var/lib/beacon/beacon.log
+          StandardError=file:/var/lib/beacon/beacon.log
           Restart=on-failure
 
           [Install]
