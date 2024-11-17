@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 )
 
 var (
@@ -19,9 +20,15 @@ type APIService struct {
 func New(addr string) {
 	e := echo.New()
 
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: []string{"*"},
+	}))
+
 	e.Validator = &customValidator{validator: validator.New()}
 
 	e.GET("/", home)
+
+	e.GET("/watch", watch)
 
 	e.GET("/stats/devices", getStats)
 

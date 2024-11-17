@@ -72,6 +72,10 @@ func Collect() {
 		shutdown:  make(chan struct{}),
 	}
 
+	Broadcaster = &QueryBroadcaster{
+		clients: make(map[chan QueryLog]bool),
+	}
+
 	QL.wg.Add(1)
 	go QL.worker()
 }
@@ -95,6 +99,7 @@ func (ql *QueryLogger) worker() {
 		case query := <-ql.queryChan:
 			QL.pending = append(QL.pending, query)
 
+			Broadcaster.Broadcast(query)
 		case <-ticker.C:
 			if len(QL.pending) > 0 {
 				ql.flush()

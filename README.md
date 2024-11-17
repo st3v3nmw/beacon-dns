@@ -30,6 +30,8 @@ checking why a certain domain was blocked... (trace)
 
 Clone... commands to run...
 
+websocat
+
 ### Linux
 
 ```console
