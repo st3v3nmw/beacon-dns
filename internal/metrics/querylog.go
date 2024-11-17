@@ -2,10 +2,10 @@ package metrics
 
 import (
 	"database/sql"
+	"log/slog"
 	"sync"
 	"time"
 
-	"github.com/labstack/gommon/log"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -78,7 +78,7 @@ func (ql *QueryLogger) Log(q QueryLog) {
 	select {
 	case ql.queryChan <- q:
 	default:
-		log.Warn("QueryLogger channel full - dropping query")
+		slog.Warn("QueryLogger channel full - dropping query")
 	}
 }
 
@@ -110,7 +110,7 @@ func (ql *QueryLogger) worker() {
 func (ql *QueryLogger) flush() {
 	tx, err := DB.Begin()
 	if err != nil {
-		log.Errorf("Failed to begin transaction: %v", err)
+		slog.Error("Failed to begin transaction", "error", err)
 		return
 	}
 
@@ -124,7 +124,7 @@ func (ql *QueryLogger) flush() {
 		)
 	`)
 	if err != nil {
-		log.Errorf("Failed to prepare statement: %v", err)
+		slog.Error("Failed to prepare statement", "error", err)
 		tx.Rollback()
 		return
 	}
@@ -137,14 +137,14 @@ func (ql *QueryLogger) flush() {
 			q.ResponseCode, q.ResponseTimeMs, q.Timestamp,
 		)
 		if err != nil {
-			log.Errorf("Failed to insert query: %v", err)
+			slog.Error("Failed to insert query", "error", err)
 			tx.Rollback()
 			return
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		log.Errorf("Failed to commit transaction: %v", err)
+		slog.Error("Failed to commit transaction", "error", err)
 		tx.Rollback()
 		return
 	}

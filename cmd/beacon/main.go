@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 
 	"github.com/st3v3nmw/beacon/internal/api"
@@ -19,32 +19,37 @@ func main() {
 	// Read config
 	configFile, err := mustGetEnv("CONFIG_FILE")
 	if err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
+		return
 	}
 
 	err = config.Read(configFile)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
+		return
 	}
 
 	// Load lists
 	fmt.Println("Syncing blocklists with upstream sources...")
 	dataDir, err := mustGetEnv("DATA_DIR")
 	if err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
+		return
 	}
 
 	lists.Dir = fmt.Sprintf("%s/%s", dataDir, "lists")
 	os.MkdirAll(lists.Dir, 0755)
 
 	if err := lists.Sync(context.Background()); err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
+		return
 	}
 
 	// Cache
 	fmt.Println("Setting up cache...")
 	if err := dns.NewCache(); err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
+		return
 	}
 	defer dns.Cache.Close()
 
@@ -53,7 +58,8 @@ func main() {
 	metrics.DataDir = dataDir
 	err = metrics.NewDB()
 	if err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
+		return
 	}
 	defer metrics.DB.Close()
 
@@ -68,7 +74,7 @@ func main() {
 
 	go func() {
 		if err := dns.StartUDPServer(); err != nil {
-			log.Fatalf("dns service error: %v\n", err)
+			slog.Error("dns service error", "error", err)
 		}
 	}()
 
@@ -79,7 +85,8 @@ func main() {
 	api.New(apiAddr)
 	err = api.Start()
 	if err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
+		return
 	}
 }
 

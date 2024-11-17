@@ -2,7 +2,7 @@ package lists
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/st3v3nmw/beacon/internal/config"
@@ -23,7 +23,7 @@ func Sync(ctx context.Context) error {
 	go func() {
 		for range ticker.C {
 			if err := syncBlockListsWithUpstream(); err != nil {
-				fmt.Println(err)
+				slog.Error(err.Error())
 			}
 		}
 	}()
@@ -46,14 +46,14 @@ func syncBlockListsWithUpstream() error {
 			Categories: listConf.Categories,
 			Format:     listConf.Format,
 		}
-		fmt.Printf(" Syncing %s...\n", list.Name)
+		slog.Info(" Syncing", "list", list.Name)
 
 		now := time.Now().UTC()
 		fetchFromUpstream := true
 		if list.existsOnFs() {
 			err = list.readFromFs()
 			if err != nil {
-				fmt.Printf(" \tGot error while syncing %s: %v\n", list.Name, err)
+				slog.Error(" \tGot error while syncing", "list", list.Name, "error", err)
 				continue
 			}
 
@@ -61,17 +61,17 @@ func syncBlockListsWithUpstream() error {
 		}
 
 		if fetchFromUpstream {
-			fmt.Println(" \tFetching from upstream...")
+			slog.Info(" \tFetching from upstream...")
 			err = list.fetchFromUpstream()
 			if err != nil {
-				fmt.Printf(" \tGot error while syncing %s: %v\n", list.Name, err)
+				slog.Error(" \tGot error while syncing", "list", list.Name, "error", err)
 				continue
 			}
 
-			fmt.Println(" \tUpdating local copy...")
+			slog.Info(" \tUpdating local copy...")
 			err = list.saveToFs()
 			if err != nil {
-				fmt.Printf(" \tError while saving locally %s: %v\n", list.Name, err)
+				slog.Error(" \tError while saving locally", "list", list.Name, "error", err)
 				continue
 			}
 		}
@@ -79,6 +79,6 @@ func syncBlockListsWithUpstream() error {
 		dns.LoadListToMemory(list.Name, list.Action, list.Categories, list.Domains)
 	}
 
-	fmt.Println(" Lists loaded into memory.")
+	slog.Info(" Lists loaded into memory.")
 	return err
 }
