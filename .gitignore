@@ -31,6 +31,7 @@ config.yaml
 # data
 .data
 *.db
+*.db-journal
 
 # IDEs
 .vscode/

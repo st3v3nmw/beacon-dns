@@ -10,11 +10,11 @@ import (
 	"github.com/st3v3nmw/beacon/internal/config"
 	"github.com/st3v3nmw/beacon/internal/dns"
 	"github.com/st3v3nmw/beacon/internal/lists"
-	"github.com/st3v3nmw/beacon/internal/metrics"
+	"github.com/st3v3nmw/beacon/internal/querylog"
 )
 
 func main() {
-	fmt.Println("Beacon DNS\n==========")
+	slog.Info("Beacon DNS")
 
 	// Read config
 	configFile, err := mustGetEnv("CONFIG_FILE")
@@ -30,7 +30,7 @@ func main() {
 	}
 
 	// Load lists
-	fmt.Println("Syncing blocklists with upstream sources...")
+	slog.Info("Syncing blocklists with upstream sources...")
 	dataDir, err := mustGetEnv("DATA_DIR")
 	if err != nil {
 		slog.Error(err.Error())
@@ -46,28 +46,28 @@ func main() {
 	}
 
 	// Cache
-	fmt.Println("Setting up cache...")
+	slog.Info("Setting up cache...")
 	if err := dns.NewCache(); err != nil {
 		slog.Error(err.Error())
 		return
 	}
 	defer dns.Cache.Close()
 
-	// Metrics
-	fmt.Println("Setting up metrics collection...")
-	metrics.DataDir = dataDir
-	err = metrics.NewDB()
+	// Query log
+	slog.Info("Setting up query logger...")
+	querylog.DataDir = dataDir
+	err = querylog.NewDB()
 	if err != nil {
 		slog.Error(err.Error())
 		return
 	}
-	defer metrics.DB.Close()
+	defer querylog.DB.Close()
 
-	metrics.Collect()
-	defer metrics.QL.Shutdown()
+	querylog.Collect()
+	defer querylog.QL.Shutdown()
 
 	// UDP DNS service
-	fmt.Println("Setting up UDP DNS service...")
+	slog.Info("Setting up UDP DNS service...")
 	dnsAddr := fmt.Sprintf(":%d", config.All.DNS.Port)
 
 	dns.NewUDPServer(dnsAddr)
@@ -79,7 +79,7 @@ func main() {
 	}()
 
 	// API
-	fmt.Println("Starting API service...")
+	slog.Info("Starting API service...")
 	apiAddr := fmt.Sprintf(":%d", config.All.API.Port)
 
 	api.New(apiAddr)

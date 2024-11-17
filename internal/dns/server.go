@@ -6,7 +6,7 @@ import (
 	"time"
 
 	dnslib "github.com/miekg/dns"
-	"github.com/st3v3nmw/beacon/internal/metrics"
+	"github.com/st3v3nmw/beacon/internal/querylog"
 )
 
 var (
@@ -60,9 +60,9 @@ func handleUDPRequest(w dnslib.ResponseWriter, r *dnslib.Msg) {
 	clientAddr := w.RemoteAddr().(*net.UDPAddr)
 	clientIP := clientAddr.IP.String()
 	end := time.Now()
-	metrics.QL.Log(
-		metrics.QueryLog{
-			Hostname:       nil,
+	querylog.QL.Log(
+		querylog.QueryLog{
+			Hostname:       clientIP,
 			IP:             &clientIP,
 			Domain:         domain,
 			QueryType:      dnslib.TypeToString[qn.Qtype],

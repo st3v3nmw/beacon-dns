@@ -53,8 +53,8 @@
           WorkingDirectory=/var/lib/beacon
           User=root
           PIDFile=/run/beacon.pid
-          StandardOutput=file:/var/lib/beacon/beacon.log
-          StandardError=file:/var/lib/beacon/beacon.log
+          StandardOutput=append:/var/lib/beacon/beacon.log
+          StandardError=append:/var/lib/beacon/beacon.log
           Restart=on-failure
 
           [Install]

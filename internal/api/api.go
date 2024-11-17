@@ -23,6 +23,8 @@ func New(addr string) {
 
 	e.GET("/", home)
 
+	e.GET("/stats/devices", getStats)
+
 	API = &APIService{
 		address: addr,
 		echo:    e,

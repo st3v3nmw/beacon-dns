@@ -1,4 +1,4 @@
-package metrics
+package querylog
 
 import (
 	"database/sql"
@@ -15,23 +15,10 @@ var (
 	QL      *QueryLogger
 )
 
-func NewDB() (err error) {
-	DB, err = sql.Open("sqlite3", DataDir+"/metrics.db")
-	if err != nil {
-		return err
-	}
-
-	// Run migrations
-	_, err = DB.Exec(schema)
-
-	// TODO: Drop data that's past the retention period
-	return
-}
-
 const schema = `
 CREATE TABLE IF NOT EXISTS queries (
 	id INTEGER PRIMARY KEY,
-	hostname VARCHAR(255) NULL,
+	hostname VARCHAR(255) DEFAULT "unknown",
 	ip VARCHAR(50) NULL,
 	domain VARCHAR(255) NOT NULL,
 	query_type VARCHAR(20) NOT NULL,
@@ -45,8 +32,21 @@ CREATE TABLE IF NOT EXISTS queries (
 );
 `
 
+func NewDB() (err error) {
+	DB, err = sql.Open("sqlite3", DataDir+"/querylog.db")
+	if err != nil {
+		return err
+	}
+
+	// Run migrations
+	_, err = DB.Exec(schema)
+
+	// TODO: Drop data that's past the retention period
+	return
+}
+
 type QueryLog struct {
-	Hostname       *string   `json:"hostname"`
+	Hostname       string    `json:"hostname"`
 	IP             *string   `json:"ip"`
 	Domain         string    `json:"domain"`
 	QueryType      string    `json:"query_type"`

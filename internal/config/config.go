@@ -82,9 +82,10 @@ type QuotaConfig struct {
 }
 
 type QueryLogConfig struct {
-	Enabled   bool   `yaml:"enabled"`
-	LogIPs    bool   `yaml:"log-ips"`
-	Retention string `yaml:"retention"`
+	Enabled        bool   `yaml:"enabled"`
+	LogIPs         bool   `yaml:"log-ips"`
+	QueryRetention string `yaml:"query-retention"`
+	StatsRetention string `yaml:"stats-retention"`
 }
 
 type LogConfig struct {
@@ -134,9 +135,10 @@ func Read(filePath string) error {
 	All.API = APIConfig{Port: 80}
 
 	All.QueryLog = QueryLogConfig{
-		Enabled:   true,
-		LogIPs:    false,
-		Retention: "90d",
+		Enabled:        true,
+		LogIPs:         false,
+		QueryRetention: "90d",
+		StatsRetention: "365d",
 	}
 
 	All.Log = LogConfig{Level: "info"}
