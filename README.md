@@ -7,14 +7,12 @@ Beacon DNS is a recursive DNS resolver with customizable filtering for malware, 
 - [x] UDP 53
 - [x] Filtering
 - [x] Caching
-- [ ] Calls upstream resolvers over DNS over TLS (DoT)
+- [ ] Call upstream resolvers over DNS over TLS (DoT)
 - [ ] CLI Interface
 - [ ] Global Network
 - [ ] Safe Search
 - [ ] DNSSEC Validation
 - [ ] Schedules
-
-- rotate providers
 
 ## Usage
 

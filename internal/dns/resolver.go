@@ -3,7 +3,6 @@ package dns
 import (
 	"fmt"
 	"math"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -41,68 +40,6 @@ type Rule struct {
 	Action   *types.Action   `json:"action"`
 }
 
-// By default, we filter out ads & malware.
-type Filter struct {
-	Ads            bool
-	Malware        bool
-	Adult          bool
-	Dating         bool
-	SocialMedia    bool
-	VideoStreaming bool
-	Gambling       bool
-	Gaming         bool
-	Piracy         bool
-	Drugs          bool
-}
-
-func NewFilterFromStr(filterStr string) (*Filter, error) {
-	mask, err := strconv.Atoi(filterStr)
-	if err != nil {
-		return nil, err
-	}
-
-	if mask >= 1024 {
-		return nil, fmt.Errorf("filter must be less than 1024")
-	}
-
-	return &Filter{
-		Ads:            mask&(1<<0) != 0,
-		Malware:        mask&(1<<1) != 0,
-		Adult:          mask&(1<<2) != 0,
-		Dating:         mask&(1<<3) != 0,
-		SocialMedia:    mask&(1<<4) != 0,
-		VideoStreaming: mask&(1<<5) != 0,
-		Gambling:       mask&(1<<6) != 0,
-		Gaming:         mask&(1<<7) != 0,
-		Piracy:         mask&(1<<8) != 0,
-		Drugs:          mask&(1<<9) != 0,
-	}, nil
-}
-
-func (f *Filter) Categories() []types.Category {
-	categoryMap := map[types.Category]bool{
-		types.CategoryAds:            f.Ads,
-		types.CategoryMalware:        f.Malware,
-		types.CategoryAdult:          f.Adult,
-		types.CategoryDating:         f.Dating,
-		types.CategorySocialMedia:    f.SocialMedia,
-		types.CategoryVideoStreaming: f.VideoStreaming,
-		types.CategoryGambling:       f.Gambling,
-		types.CategoryGaming:         f.Gaming,
-		types.CategoryPiracy:         f.Piracy,
-		types.CategoryDrugs:          f.Drugs,
-	}
-
-	categories := make([]types.Category, 0, 10)
-	for category, enabled := range categoryMap {
-		if enabled {
-			categories = append(categories, category)
-		}
-	}
-
-	return categories
-}
-
 func LoadListToMemory(name string, action types.Action, categories []types.Category, domains []string) {
 	treeMu.Lock()
 	defer treeMu.Unlock()
@@ -135,12 +72,12 @@ func LoadListToMemory(name string, action types.Action, categories []types.Categ
 	}
 }
 
-func isBlocked(domain string, filter *Filter) (bool, []Rule) {
+func isBlocked(domain string) (bool, []Rule) {
 	treeMu.RLock()
 	defer treeMu.RUnlock()
 
 	key := reverseDomain(domain)
-	for _, category := range filter.Categories() {
+	for _, category := range config.All.DNS.Block {
 		blocked, rules := isBlockedByCategory(key, domain, category)
 		if blocked {
 			return blocked, rules

@@ -1,6 +1,7 @@
 package dns
 
 import (
+	"fmt"
 	"net"
 	"strings"
 
@@ -25,27 +26,16 @@ func StartUDPServer() error {
 }
 
 func handleUDPRequest(w dnslib.ResponseWriter, r *dnslib.Msg) {
-	filter := &Filter{
-		Ads:     true,
-		Malware: true,
-	}
-	m := processMsg(r, filter)
-
-	if m != nil {
-		w.WriteMsg(m)
-	}
-}
-
-func processMsg(r *dnslib.Msg, filter *Filter) *dnslib.Msg {
 	if len(r.Question) == 0 {
-		return nil
+		return
 	}
 
 	var m *dnslib.Msg
 	qn := r.Question[0]
 	domain := strings.TrimSuffix(qn.Name, ".")
+	fmt.Println("query:", domain)
 
-	blocked, _ := isBlocked(domain, filter)
+	blocked, _ := isBlocked(domain)
 	if blocked {
 		m = blockDomainOnUDP(r)
 	} else {
@@ -60,7 +50,7 @@ func processMsg(r *dnslib.Msg, filter *Filter) *dnslib.Msg {
 		}
 	}
 
-	return m
+	w.WriteMsg(m)
 }
 
 func blockDomainOnUDP(r *dnslib.Msg) *dnslib.Msg {

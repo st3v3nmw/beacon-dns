@@ -20,6 +20,7 @@ type Source struct {
 	Categories []types.Category   `json:"category"`
 	LastSync   time.Time          `json:"last_sync"`
 	Domains    []string           `json:"domains"`
+	IPs        []string           `json:"ips"`
 	Format     types.SourceFormat `json:"-"`
 }
 

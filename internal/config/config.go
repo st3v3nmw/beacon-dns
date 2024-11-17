@@ -25,8 +25,9 @@ type Config struct {
 }
 
 type DNSConfig struct {
-	Port      uint16   `yaml:"port"`
-	Upstreams []string `yaml:"upstreams"`
+	Port      uint16           `yaml:"port"`
+	Upstreams []string         `yaml:"upstreams"`
+	Block     []types.Category `yaml:"block"`
 }
 
 type CacheConfig struct {
@@ -46,9 +47,9 @@ type APIConfig struct {
 }
 
 type GroupConfig struct {
-	Name    string         `yaml:"name"`
-	Devices []DeviceConfig `yaml:"devices"`
-	Block   []string       `yaml:"block"`
+	Name    string           `yaml:"name"`
+	Devices []DeviceConfig   `yaml:"devices"`
+	Block   []types.Category `yaml:"block"`
 }
 
 type DeviceConfig struct {
@@ -57,10 +58,10 @@ type DeviceConfig struct {
 }
 
 type ScheduleConfig struct {
-	Name    string         `yaml:"name"`
-	ApplyTo []string       `yaml:"apply-to"`
-	When    []ScheduleWhen `yaml:"when"`
-	Block   []string       `yaml:"block"`
+	Name    string           `yaml:"name"`
+	ApplyTo []string         `yaml:"apply-to"`
+	When    []ScheduleWhen   `yaml:"when"`
+	Block   []types.Category `yaml:"block"`
 }
 
 type ScheduleWhen struct {
@@ -118,6 +119,7 @@ func Read(filePath string) error {
 	All.DNS = DNSConfig{
 		Port:      53,
 		Upstreams: []string{"1.1.1.1", "8.8.8.8"},
+		Block:     []types.Category{types.CategoryAds, types.CategoryMalware},
 	}
 
 	All.Cache = CacheConfig{
