@@ -27,6 +27,7 @@ func StartUDPServer() error {
 }
 
 func handleUDPRequest(w dnslib.ResponseWriter, r *dnslib.Msg) {
+	start := time.Now()
 	if len(r.Question) == 0 {
 		return
 	}
@@ -36,7 +37,6 @@ func handleUDPRequest(w dnslib.ResponseWriter, r *dnslib.Msg) {
 	domain := strings.TrimSuffix(qn.Name, ".")
 
 	blocked, rules := isBlocked(domain)
-	var rtt time.Duration = 0
 	cached := false
 	var reason, upstream *string
 	if blocked {
@@ -45,7 +45,7 @@ func handleUDPRequest(w dnslib.ResponseWriter, r *dnslib.Msg) {
 		reason = (*string)(rules[0].Category)
 	} else {
 		var err error
-		m, rtt, cached, upstream, err = resolve(r)
+		m, cached, upstream, err = resolve(r)
 
 		if err != nil {
 			m = &dnslib.Msg{}
@@ -57,7 +57,9 @@ func handleUDPRequest(w dnslib.ResponseWriter, r *dnslib.Msg) {
 
 	w.WriteMsg(m)
 
-	clientIP := w.RemoteAddr().String()
+	clientAddr := w.RemoteAddr().(*net.UDPAddr)
+	clientIP := clientAddr.IP.String()
+	end := time.Now()
 	metrics.QL.Log(
 		metrics.QueryLog{
 			Hostname:       nil,
@@ -69,8 +71,8 @@ func handleUDPRequest(w dnslib.ResponseWriter, r *dnslib.Msg) {
 			BlockReason:    reason,
 			Upstream:       upstream,
 			ResponseCode:   dnslib.RcodeToString[m.Rcode],
-			ResponseTimeMs: int(rtt.Milliseconds()),
-			Timestamp:      time.Now(),
+			ResponseTimeMs: int(end.UnixMilli() - start.UnixMilli()),
+			Timestamp:      end,
 		},
 	)
 }

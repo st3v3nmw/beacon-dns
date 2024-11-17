@@ -21,8 +21,10 @@ func NewDB() (err error) {
 		return err
 	}
 
+	// Run migrations
 	_, err = DB.Exec(schema)
 
+	// TODO: Drop data that's past the retention period
 	return
 }
 
@@ -85,7 +87,7 @@ func (ql *QueryLogger) Log(q QueryLog) {
 func (ql *QueryLogger) worker() {
 	defer ql.wg.Done()
 
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
 
 	for {

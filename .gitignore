@@ -30,6 +30,7 @@ config.yaml
 
 # data
 .data
+*.db
 
 # IDEs
 .vscode/
