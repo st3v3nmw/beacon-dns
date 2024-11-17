@@ -7,6 +7,7 @@ require (
 	github.com/go-playground/validator/v10 v10.22.1
 	github.com/goccy/go-yaml v1.13.8
 	github.com/labstack/echo/v4 v4.12.0
+	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/maypok86/otter v1.2.3
 	github.com/miekg/dns v1.1.62
 )

@@ -10,6 +10,7 @@ import (
 	"github.com/st3v3nmw/beacon/internal/config"
 	"github.com/st3v3nmw/beacon/internal/dns"
 	"github.com/st3v3nmw/beacon/internal/lists"
+	"github.com/st3v3nmw/beacon/internal/metrics"
 )
 
 func main() {
@@ -26,8 +27,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Println(config.All)
-
 	// Load lists
 	fmt.Println("Syncing blocklists with upstream sources...")
 	dataDir, err := mustGetEnv("DATA_DIR")
@@ -35,8 +34,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	lists.DataDir = fmt.Sprintf("%s/%s", dataDir, "lists")
-	os.MkdirAll(lists.DataDir, 0755)
+	lists.Dir = fmt.Sprintf("%s/%s", dataDir, "lists")
+	os.MkdirAll(lists.Dir, 0755)
 
 	if err := lists.Sync(context.Background()); err != nil {
 		log.Fatal(err)
@@ -48,6 +47,18 @@ func main() {
 		log.Fatal(err)
 	}
 	defer dns.Cache.Close()
+
+	// Metrics
+	fmt.Println("Setting up metrics collection...")
+	metrics.DataDir = dataDir
+	err = metrics.NewDB()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer metrics.DB.Close()
+
+	metrics.Collect()
+	defer metrics.QL.Shutdown()
 
 	// UDP DNS service
 	fmt.Println("Setting up UDP DNS service...")

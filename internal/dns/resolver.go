@@ -127,19 +127,19 @@ func reverseDomain(domain string) string {
 	return strings.Join(parts, ".")
 }
 
-func resolve(r *dnslib.Msg) (*dnslib.Msg, error) {
+func resolve(r *dnslib.Msg) (*dnslib.Msg, time.Duration, bool, *string, error) {
 	qn := r.Question[0]
 	key := fmt.Sprintf("%s-%d-%d", qn.Name, qn.Qtype, qn.Qclass)
 	cached, ok := Cache.Get(key)
 	if ok {
 		m := cached.Copy()
 		m.Id = r.Id
-		return m, nil
+		return m, 0, true, nil, nil
 	}
 
-	m, err := forwardToUpstream(r)
+	m, rtt, upstream, err := forwardToUpstream(r)
 	if err != nil {
-		return nil, err
+		return nil, 0, false, upstream, err
 	}
 
 	maxUint32 := uint32(math.MaxUint32)
@@ -150,7 +150,7 @@ func resolve(r *dnslib.Msg) (*dnslib.Msg, error) {
 		Cache.Set(key, m, time.Duration(cacheTtl-15)*time.Second)
 	}
 
-	return m, nil
+	return m, rtt, false, upstream, nil
 }
 
 func minAnswerTtl(cacheTtl uint32, rr []dnslib.RR) uint32 {
@@ -163,10 +163,12 @@ func minAnswerTtl(cacheTtl uint32, rr []dnslib.RR) uint32 {
 	return cacheTtl
 }
 
-func forwardToUpstream(r *dnslib.Msg) (*dnslib.Msg, error) {
-	c := new(dnslib.Client)
+func forwardToUpstream(r *dnslib.Msg) (*dnslib.Msg, time.Duration, *string, error) {
 	// TODO: Replace this
-	addr := fmt.Sprintf("%s:53", config.All.DNS.Upstreams[0])
-	m, _, err := c.Exchange(r, addr)
-	return m, err
+	upstream := config.All.DNS.Upstreams[0]
+	addr := fmt.Sprintf("%s:53", upstream)
+
+	c := new(dnslib.Client)
+	m, rtt, err := c.Exchange(r, addr)
+	return m, rtt, &upstream, err
 }

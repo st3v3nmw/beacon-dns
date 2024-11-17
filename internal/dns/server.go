@@ -1,11 +1,12 @@
 package dns
 
 import (
-	"fmt"
 	"net"
 	"strings"
+	"time"
 
 	dnslib "github.com/miekg/dns"
+	"github.com/st3v3nmw/beacon/internal/metrics"
 )
 
 var (
@@ -33,14 +34,18 @@ func handleUDPRequest(w dnslib.ResponseWriter, r *dnslib.Msg) {
 	var m *dnslib.Msg
 	qn := r.Question[0]
 	domain := strings.TrimSuffix(qn.Name, ".")
-	fmt.Println("query:", domain)
 
-	blocked, _ := isBlocked(domain)
+	blocked, rules := isBlocked(domain)
+	var rtt time.Duration = 0
+	cached := false
+	var reason, upstream *string
 	if blocked {
 		m = blockDomainOnUDP(r)
+		blocked = true
+		reason = (*string)(rules[0].Category)
 	} else {
 		var err error
-		m, err = resolve(r)
+		m, rtt, cached, upstream, err = resolve(r)
 
 		if err != nil {
 			m = &dnslib.Msg{}
@@ -51,6 +56,23 @@ func handleUDPRequest(w dnslib.ResponseWriter, r *dnslib.Msg) {
 	}
 
 	w.WriteMsg(m)
+
+	clientIP := w.RemoteAddr().String()
+	metrics.QL.Log(
+		metrics.QueryLog{
+			Hostname:       nil,
+			IP:             &clientIP,
+			Domain:         domain,
+			QueryType:      dnslib.TypeToString[qn.Qtype],
+			Cached:         cached,
+			Blocked:        blocked,
+			BlockReason:    reason,
+			Upstream:       upstream,
+			ResponseCode:   dnslib.RcodeToString[m.Rcode],
+			ResponseTimeMs: int(rtt.Milliseconds()),
+			Timestamp:      time.Now(),
+		},
+	)
 }
 
 func blockDomainOnUDP(r *dnslib.Msg) *dnslib.Msg {

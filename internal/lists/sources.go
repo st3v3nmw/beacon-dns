@@ -25,7 +25,7 @@ type Source struct {
 }
 
 func (s *Source) path() string {
-	return fmt.Sprintf("%s/%s.json", DataDir, s.Name)
+	return fmt.Sprintf("%s/%s.json", Dir, s.Name)
 }
 
 func (s *Source) existsOnFs() bool {

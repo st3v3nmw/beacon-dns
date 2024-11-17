@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	DataDir string
+	Dir string
 )
 
 func Sync(ctx context.Context) error {
