@@ -62,7 +62,7 @@
             port: 80
 
           # TODO: remove this block from the sample config
-          hostnames:
+          client_lookup:
             upstream: 100.100.100.100
             method: tailscale
 

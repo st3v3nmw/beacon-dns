@@ -13,16 +13,16 @@ var (
 )
 
 type Config struct {
-	DNS       DNSConfig        `yaml:"dns" json:"dns"`
-	Cache     CacheConfig      `yaml:"cache" json:"cache"`
-	API       APIConfig        `yaml:"api" json:"api"`
-	Hostnames HostnamesConfig  `yaml:"hostnames" json:"hostnames"`
-	Groups    []GroupConfig    `yaml:"groups" json:"groups"`
-	Schedules []ScheduleConfig `yaml:"schedules" json:"schedules"`
-	Quotas    []QuotaConfig    `yaml:"quotas" json:"quotas"`
-	QueryLog  QueryLogConfig   `yaml:"querylog" json:"querylog"`
-	DHCP      DHCPConfig       `yaml:"dhcp" json:"dhcp"`
-	Sources   SourcesConfig    `yaml:"sources" json:"sources"`
+	DNS          DNSConfig          `yaml:"dns" json:"dns"`
+	Cache        CacheConfig        `yaml:"cache" json:"cache"`
+	API          APIConfig          `yaml:"api" json:"api"`
+	ClientLookup ClientLookupConfig `yaml:"client_lookup" json:"client_lookup"`
+	Groups       []GroupConfig      `yaml:"groups" json:"groups"`
+	Schedules    []ScheduleConfig   `yaml:"schedules" json:"schedules"`
+	Quotas       []QuotaConfig      `yaml:"quotas" json:"quotas"`
+	QueryLog     QueryLogConfig     `yaml:"querylog" json:"querylog"`
+	DHCP         DHCPConfig         `yaml:"dhcp" json:"dhcp"`
+	Sources      SourcesConfig      `yaml:"sources" json:"sources"`
 }
 
 type DNSConfig struct {
@@ -47,10 +47,10 @@ type APIConfig struct {
 	Tokens []string `yaml:"tokens" json:"tokens"`
 }
 
-type HostnamesConfig struct {
-	Upstream string                     `yaml:"upstream" json:"upstream"`
-	Method   types.HostnameLookupMethod `yaml:"method" json:"method"`
-	Hosts    map[string]net.IP          `yaml:"hosts" json:"hosts"`
+type ClientLookupConfig struct {
+	Upstream string                   `yaml:"upstream" json:"upstream"`
+	Method   types.ClientLookupMethod `yaml:"method" json:"method"`
+	Clients  map[string]net.IP        `yaml:"clients" json:"clients"`
 }
 
 type GroupConfig struct {

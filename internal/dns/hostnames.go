@@ -29,14 +29,14 @@ func lookupHostname(ip net.IP) string {
 		return hostname.(string)
 	}
 
-	if h, ok := config.All.Hostnames.Hosts[ipStr]; ok {
+	if h, ok := config.All.ClientLookup.Clients[ipStr]; ok {
 		hostname = h
 	} else if ip.IsLoopback() {
 		hostname = lookupLocalHostname()
 	} else {
-		method := config.All.Hostnames.Method
+		method := config.All.ClientLookup.Method
 		switch method {
-		case types.HostnameLookupTailscale:
+		case types.ClientLookupTailscale:
 			hostname = lookupHostnameOnTailscale(ipStr)
 		default:
 			hostname = unknownHost
@@ -73,7 +73,7 @@ func reverseDNSLookup(ip string) string {
 
 	msg := new(dnslib.Msg)
 	msg.SetQuestion(addr, dnslib.TypePTR)
-	serverAddr := fmt.Sprintf("%s:53", config.All.Hostnames.Upstream)
+	serverAddr := fmt.Sprintf("%s:53", config.All.ClientLookup.Upstream)
 
 	c := new(dnslib.Client)
 	m, _, err := c.Exchange(msg, serverAddr)
