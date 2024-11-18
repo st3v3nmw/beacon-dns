@@ -20,7 +20,6 @@ const (
 	CategoryGaming         Category = "gaming"          // gaming
 	CategoryPiracy         Category = "piracy"          // piracy, torrents
 	CategoryDrugs          Category = "drugs"           // drugs
-	CategoryCustom         Category = "custom"          // custom or user-defined lists
 )
 
 type SourceFormat string
@@ -28,5 +27,13 @@ type SourceFormat string
 const (
 	SourceFormatDomains SourceFormat = "domains"
 	SourceFormatHosts   SourceFormat = "hosts"
-	SourceFormatIps     SourceFormat = "ips"
+	// TODO: Parse these
+	SourceFormatIps SourceFormat = "ips"
+)
+
+type ClientLookupMethod string
+
+const (
+	// TODO: Add options for DHCP lease files or other rDNS
+	ClientLookupTailscale ClientLookupMethod = "tailscale"
 )

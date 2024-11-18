@@ -22,10 +22,6 @@ func NewUDPServer(addr string) {
 	UDP.Handler = dnslib.HandlerFunc(handleUDPRequest)
 }
 
-func StartUDPServer() error {
-	return UDP.ListenAndServe()
-}
-
 func handleUDPRequest(w dnslib.ResponseWriter, r *dnslib.Msg) {
 	start := time.Now()
 	if len(r.Question) == 0 {
@@ -59,13 +55,19 @@ func handleUDPRequest(w dnslib.ResponseWriter, r *dnslib.Msg) {
 
 	clientAddr := w.RemoteAddr().(*net.UDPAddr)
 	clientIP := clientAddr.IP.String()
+
+	queryType, ok := dnslib.TypeToString[qn.Qtype]
+	if !ok {
+		queryType = "UNKNOWN"
+	}
+
 	end := time.Now()
 	querylog.QL.Log(
 		querylog.QueryLog{
 			Hostname:       clientIP,
 			IP:             &clientIP,
 			Domain:         domain,
-			QueryType:      dnslib.TypeToString[qn.Qtype],
+			QueryType:      queryType,
 			Cached:         cached,
 			Blocked:        blocked,
 			BlockReason:    reason,

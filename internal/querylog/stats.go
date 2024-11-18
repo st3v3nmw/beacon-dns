@@ -26,7 +26,7 @@ SELECT
 
     -- Performance
     ROUND(AVG(response_time_ms), 2) as avg_response_time_ms,
-    ROUND(AVG(CASE WHEN NOT cached THEN response_time_ms END), 2) as avg_uncached_response_time_ms,
+    ROUND(COALESCE(AVG(CASE WHEN NOT cached THEN response_time_ms END), 0), 2) as avg_uncached_response_time_ms,
     MIN(response_time_ms) as min_response_time_ms,
     MAX(response_time_ms) as max_response_time_ms,
 

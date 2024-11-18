@@ -36,7 +36,7 @@ func (b *QueryBroadcaster) Unsubscribe(ch chan QueryLog) {
 	close(ch)
 }
 
-func (b *QueryBroadcaster) Broadcast(query QueryLog) {
+func (b *QueryBroadcaster) broadcast(query QueryLog) {
 	b.lock.RLock()
 	defer b.lock.RUnlock()
 

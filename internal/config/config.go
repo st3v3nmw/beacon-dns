@@ -1,6 +1,7 @@
 package config
 
 import (
+	"net"
 	"os"
 
 	"github.com/goccy/go-yaml"
@@ -12,102 +13,104 @@ var (
 )
 
 type Config struct {
-	DNS       DNSConfig        `yaml:"dns"`
-	Cache     CacheConfig      `yaml:"cache"`
-	API       APIConfig        `yaml:"api"`
-	Groups    []GroupConfig    `yaml:"groups"`
-	Schedules []ScheduleConfig `yaml:"schedules"`
-	Quotas    []QuotaConfig    `yaml:"quotas"`
-	QueryLog  QueryLogConfig   `yaml:"querylog"`
-	Log       LogConfig        `yaml:"log"`
-	Sources   SourcesConfig    `yaml:"sources"`
-	DHCP      DHCPConfig       `yaml:"dhcp"`
+	DNS          DNSConfig          `yaml:"dns" json:"dns"`
+	Cache        CacheConfig        `yaml:"cache" json:"cache"`
+	API          APIConfig          `yaml:"api" json:"api"`
+	ClientLookup ClientLookupConfig `yaml:"client_lookup" json:"client_lookup"`
+	Groups       []GroupConfig      `yaml:"groups" json:"groups"`
+	Schedules    []ScheduleConfig   `yaml:"schedules" json:"schedules"`
+	Quotas       []QuotaConfig      `yaml:"quotas" json:"quotas"`
+	QueryLog     QueryLogConfig     `yaml:"querylog" json:"querylog"`
+	Log          LogConfig          `yaml:"log" json:"log"`
+	Sources      SourcesConfig      `yaml:"sources" json:"sources"`
+	DHCP         DHCPConfig         `yaml:"dhcp" json:"dhcp"`
 }
 
 type DNSConfig struct {
-	Port      uint16           `yaml:"port"`
-	Upstreams []string         `yaml:"upstreams"`
-	Block     []types.Category `yaml:"block"`
+	Port      uint16           `yaml:"port" json:"port"`
+	Upstreams []string         `yaml:"upstreams" json:"upstreams"`
+	Block     []types.Category `yaml:"block" json:"block"`
 }
 
 type CacheConfig struct {
-	Enabled bool           `yaml:"enabled"`
-	Size    int            `yaml:"size"`
-	TTL     CacheTTLConfig `yaml:"ttl"`
+	Enabled bool           `yaml:"enabled" json:"enabled"`
+	Size    int            `yaml:"size" json:"size"`
+	TTL     CacheTTLConfig `yaml:"ttl" json:"ttl"`
 }
 
 type CacheTTLConfig struct {
-	Min string `yaml:"min"`
-	Max string `yaml:"max"`
+	Min string `yaml:"min" json:"min"`
+	Max string `yaml:"max" json:"max"`
 }
 
 type APIConfig struct {
-	Port   uint16   `yaml:"port"`
-	Tokens []string `yaml:"tokens"`
+	Port   uint16   `yaml:"port" json:"port"`
+	Tokens []string `yaml:"tokens" json:"tokens"`
+}
+
+type ClientLookupConfig struct {
+	Upstream string                   `yaml:"upstream" json:"upstream"`
+	Method   types.ClientLookupMethod `yaml:"method" json:"method"`
+	Clients  map[string]net.IP        `yaml:"clients" json:"clients"`
 }
 
 type GroupConfig struct {
-	Name    string           `yaml:"name"`
-	Devices []DeviceConfig   `yaml:"devices"`
-	Block   []types.Category `yaml:"block"`
-}
-
-type DeviceConfig struct {
-	Hostname   string `yaml:"hostname"`
-	Identifier string `yaml:"identifier,omitempty"`
+	Name    string           `yaml:"name" json:"name"`
+	Devices []string         `yaml:"devices" json:"devices"`
+	Block   []types.Category `yaml:"block" json:"block"`
 }
 
 type ScheduleConfig struct {
-	Name    string           `yaml:"name"`
-	ApplyTo []string         `yaml:"apply-to"`
-	When    []ScheduleWhen   `yaml:"when"`
-	Block   []types.Category `yaml:"block"`
+	Name    string           `yaml:"name" json:"name"`
+	ApplyTo []string         `yaml:"apply_to" json:"apply_to"`
+	When    []ScheduleWhen   `yaml:"when" json:"when"`
+	Block   []types.Category `yaml:"block" json:"block"`
 }
 
 type ScheduleWhen struct {
-	Days []string       `yaml:"days"`
-	Time []ScheduleTime `yaml:"time"`
+	Days []string       `yaml:"days" json:"days"`
+	Time []ScheduleTime `yaml:"time" json:"time"`
 }
 
 type ScheduleTime struct {
-	Start string `yaml:"start"`
-	End   string `yaml:"end"`
+	Start string `yaml:"start" json:"start"`
+	End   string `yaml:"end" json:"end"`
 }
 
 type QuotaConfig struct {
-	Name       string   `yaml:"name"`
-	ApplyTo    []string `yaml:"apply-to"`
-	DailyLimit string   `yaml:"daily-limit"`
-	Categories []string `yaml:"categories"`
+	Name       string   `yaml:"name" json:"name"`
+	ApplyTo    []string `yaml:"apply_to" json:"apply_to"`
+	DailyLimit string   `yaml:"daily_limit" json:"daily_limit"`
+	Categories []string `yaml:"categories" json:"categories"`
 }
 
 type QueryLogConfig struct {
-	Enabled        bool   `yaml:"enabled"`
-	LogIPs         bool   `yaml:"log-ips"`
-	QueryRetention string `yaml:"query-retention"`
-	StatsRetention string `yaml:"stats-retention"`
+	Enabled        bool   `yaml:"enabled" json:"enabled"`
+	LogClients     bool   `yaml:"log_clients" json:"log_clients"`
+	QueryRetention string `yaml:"query_retention" json:"query_retention"`
+	StatsRetention string `yaml:"stats_retention" json:"stats_retention"`
 }
 
 type LogConfig struct {
-	Level string `yaml:"level"`
-	File  string `yaml:"file"`
+	Level string `yaml:"level" json:"level"`
+	File  string `yaml:"file" json:"file"`
 }
 
 type DHCPConfig struct {
-	Enabled bool `yaml:"enabled"`
+	Enabled bool `yaml:"enabled" json:"enabled"`
 }
 
 type SourcesConfig struct {
-	UpdateInterval string             `yaml:"update-interval"`
-	Lists          []SourceListConfig `yaml:"lists"`
+	UpdateInterval string             `yaml:"update_interval" json:"update_interval"`
+	Lists          []SourceListConfig `yaml:"lists" json:"lists"`
 }
 
 type SourceListConfig struct {
-	Name       string             `yaml:"name"`
-	URL        string             `yaml:"url"`
-	Categories []types.Category   `yaml:"categories"`
-	Action     types.Action       `yaml:"action"`
-	Format     types.SourceFormat `yaml:"format"`
+	Name       string             `yaml:"name" json:"name"`
+	URL        string             `yaml:"url" json:"url"`
+	Categories []types.Category   `yaml:"categories" json:"categories"`
+	Action     types.Action       `yaml:"action" json:"action"`
+	Format     types.SourceFormat `yaml:"format" json:"format"`
 }
 
 func Read(filePath string) error {
@@ -127,7 +130,7 @@ func Read(filePath string) error {
 		Enabled: true,
 		Size:    100_000,
 		TTL: CacheTTLConfig{
-			Min: "60s",
+			Min: "15s",
 			Max: "24h",
 		},
 	}
@@ -136,7 +139,7 @@ func Read(filePath string) error {
 
 	All.QueryLog = QueryLogConfig{
 		Enabled:        true,
-		LogIPs:         false,
+		LogClients:     false,
 		QueryRetention: "90d",
 		StatsRetention: "365d",
 	}

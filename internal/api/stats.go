@@ -7,7 +7,7 @@ import (
 	"github.com/st3v3nmw/beacon/internal/querylog"
 )
 
-func getStats(c echo.Context) error {
+func getDeviceStats(c echo.Context) error {
 	stats, err := querylog.GetDeviceStats()
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())

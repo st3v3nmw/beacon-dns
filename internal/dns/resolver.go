@@ -146,8 +146,8 @@ func resolve(r *dnslib.Msg) (*dnslib.Msg, bool, *string, error) {
 	cacheTtl := minAnswerTtl(maxUint32, m.Answer)
 	cacheTtl = minAnswerTtl(cacheTtl, m.Ns)
 	cacheTtl = minAnswerTtl(cacheTtl, m.Extra)
-	if cacheTtl > 30 && cacheTtl != maxUint32 {
-		Cache.Set(key, m, time.Duration(cacheTtl-15)*time.Second)
+	if cacheTtl >= 15 && cacheTtl != maxUint32 {
+		Cache.Set(key, m, time.Duration(cacheTtl)*time.Second)
 	}
 
 	return m, false, upstream, nil

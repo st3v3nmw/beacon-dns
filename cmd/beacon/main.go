@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/st3v3nmw/beacon/internal/api"
 	"github.com/st3v3nmw/beacon/internal/config"
@@ -29,22 +30,6 @@ func main() {
 		return
 	}
 
-	// Load lists
-	slog.Info("Syncing blocklists with upstream sources...")
-	dataDir, err := mustGetEnv("DATA_DIR")
-	if err != nil {
-		slog.Error(err.Error())
-		return
-	}
-
-	lists.Dir = fmt.Sprintf("%s/%s", dataDir, "lists")
-	os.MkdirAll(lists.Dir, 0755)
-
-	if err := lists.Sync(context.Background()); err != nil {
-		slog.Error(err.Error())
-		return
-	}
-
 	// Cache
 	slog.Info("Setting up cache...")
 	if err := dns.NewCache(); err != nil {
@@ -55,6 +40,12 @@ func main() {
 
 	// Query log
 	slog.Info("Setting up query logger...")
+	dataDir, err := mustGetEnv("DATA_DIR")
+	if err != nil {
+		slog.Error(err.Error())
+		return
+	}
+
 	querylog.DataDir = dataDir
 	err = querylog.NewDB()
 	if err != nil {
@@ -70,13 +61,32 @@ func main() {
 	slog.Info("Setting up UDP DNS service...")
 	dnsAddr := fmt.Sprintf(":%d", config.All.DNS.Port)
 
+	dnsStarted := make(chan bool, 1)
 	dns.NewUDPServer(dnsAddr)
 
 	go func() {
-		if err := dns.StartUDPServer(); err != nil {
+		dnsStarted <- true
+		if err := dns.UDP.ListenAndServe(); err != nil {
 			slog.Error("dns service error", "error", err)
 		}
 	}()
+
+	// not fool proof but we need to wait until the DNS server is running
+	// to address cases where the DNS server is the resolver on the deployment host
+	// and we won't be able to fetch lists when it's not running
+	// TODO: Need a better solution!
+	<-dnsStarted
+	time.Sleep(250 * time.Millisecond)
+
+	// Lists
+	slog.Info("Syncing blocklists with upstream sources...")
+	lists.Dir = fmt.Sprintf("%s/%s", dataDir, "lists")
+	os.MkdirAll(lists.Dir, 0755)
+
+	if err := lists.Sync(context.Background()); err != nil {
+		slog.Error(err.Error())
+		return
+	}
 
 	// API
 	slog.Info("Starting API service...")
@@ -86,7 +96,6 @@ func main() {
 	err = api.Start()
 	if err != nil {
 		slog.Error(err.Error())
-		return
 	}
 }
 
