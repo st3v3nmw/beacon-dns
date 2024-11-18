@@ -31,9 +31,9 @@ const (
 	SourceFormatIps SourceFormat = "ips"
 )
 
-type ClientLookupMethod string
+type HostnameLookupMethod string
 
 const (
 	// TODO: Add options for DHCP lease files or other rDNS
-	ClientLookupTailscale ClientLookupMethod = "tailscale"
+	HostnameLookupTailscale HostnameLookupMethod = "tailscale"
 )

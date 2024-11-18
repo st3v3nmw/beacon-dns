@@ -6,6 +6,7 @@ import (
 	"time"
 
 	dnslib "github.com/miekg/dns"
+	"github.com/st3v3nmw/beacon/internal/config"
 	"github.com/st3v3nmw/beacon/internal/querylog"
 )
 
@@ -53,30 +54,38 @@ func handleUDPRequest(w dnslib.ResponseWriter, r *dnslib.Msg) {
 
 	w.WriteMsg(m)
 
-	clientAddr := w.RemoteAddr().(*net.UDPAddr)
-	clientIP := clientAddr.IP.String()
+	if config.All.QueryLog.Enabled {
+		var hostname, ip string
+		if config.All.QueryLog.LogClients {
+			addr := w.RemoteAddr().(*net.UDPAddr)
+			ip = addr.IP.String()
+			hostname = lookupHostname(addr.IP)
+		} else {
+			hostname = "redacted"
+		}
 
-	queryType, ok := dnslib.TypeToString[qn.Qtype]
-	if !ok {
-		queryType = "UNKNOWN"
+		queryType, ok := dnslib.TypeToString[qn.Qtype]
+		if !ok {
+			queryType = "UNKNOWN"
+		}
+
+		end := time.Now()
+		querylog.QL.Log(
+			querylog.QueryLog{
+				Hostname:       hostname,
+				IP:             &ip,
+				Domain:         domain,
+				QueryType:      queryType,
+				Cached:         cached,
+				Blocked:        blocked,
+				BlockReason:    reason,
+				Upstream:       upstream,
+				ResponseCode:   dnslib.RcodeToString[m.Rcode],
+				ResponseTimeMs: int(end.UnixMilli() - start.UnixMilli()),
+				Timestamp:      end,
+			},
+		)
 	}
-
-	end := time.Now()
-	querylog.QL.Log(
-		querylog.QueryLog{
-			Hostname:       clientIP,
-			IP:             &clientIP,
-			Domain:         domain,
-			QueryType:      queryType,
-			Cached:         cached,
-			Blocked:        blocked,
-			BlockReason:    reason,
-			Upstream:       upstream,
-			ResponseCode:   dnslib.RcodeToString[m.Rcode],
-			ResponseTimeMs: int(end.UnixMilli() - start.UnixMilli()),
-			Timestamp:      end,
-		},
-	)
 }
 
 func blockDomainOnUDP(r *dnslib.Msg) *dnslib.Msg {
@@ -92,7 +101,7 @@ func blockDomainOnUDP(r *dnslib.Msg) *dnslib.Msg {
 				Name:   qn.Name,
 				Rrtype: dnslib.TypeA,
 				Class:  dnslib.ClassINET,
-				Ttl:    defaultDNSTTL,
+				Ttl:    uint32(config.All.DNS.BlockingTTL),
 			},
 			A: net.ParseIP("0.0.0.0"),
 		}
@@ -104,7 +113,7 @@ func blockDomainOnUDP(r *dnslib.Msg) *dnslib.Msg {
 				Name:   qn.Name,
 				Rrtype: dnslib.TypeAAAA,
 				Class:  dnslib.ClassINET,
-				Ttl:    defaultDNSTTL,
+				Ttl:    uint32(config.All.DNS.BlockingTTL),
 			},
 			AAAA: net.ParseIP("::"),
 		}

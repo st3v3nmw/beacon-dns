@@ -13,22 +13,23 @@ var (
 )
 
 type Config struct {
-	DNS          DNSConfig          `yaml:"dns" json:"dns"`
-	Cache        CacheConfig        `yaml:"cache" json:"cache"`
-	API          APIConfig          `yaml:"api" json:"api"`
-	ClientLookup ClientLookupConfig `yaml:"client_lookup" json:"client_lookup"`
-	Groups       []GroupConfig      `yaml:"groups" json:"groups"`
-	Schedules    []ScheduleConfig   `yaml:"schedules" json:"schedules"`
-	Quotas       []QuotaConfig      `yaml:"quotas" json:"quotas"`
-	QueryLog     QueryLogConfig     `yaml:"querylog" json:"querylog"`
-	DHCP         DHCPConfig         `yaml:"dhcp" json:"dhcp"`
-	Sources      SourcesConfig      `yaml:"sources" json:"sources"`
+	DNS       DNSConfig        `yaml:"dns" json:"dns"`
+	Cache     CacheConfig      `yaml:"cache" json:"cache"`
+	API       APIConfig        `yaml:"api" json:"api"`
+	Hostnames HostnamesConfig  `yaml:"hostnames" json:"hostnames"`
+	Groups    []GroupConfig    `yaml:"groups" json:"groups"`
+	Schedules []ScheduleConfig `yaml:"schedules" json:"schedules"`
+	Quotas    []QuotaConfig    `yaml:"quotas" json:"quotas"`
+	QueryLog  QueryLogConfig   `yaml:"querylog" json:"querylog"`
+	DHCP      DHCPConfig       `yaml:"dhcp" json:"dhcp"`
+	Sources   SourcesConfig    `yaml:"sources" json:"sources"`
 }
 
 type DNSConfig struct {
-	Port      uint16           `yaml:"port" json:"port"`
-	Upstreams []string         `yaml:"upstreams" json:"upstreams"`
-	Block     []types.Category `yaml:"block" json:"block"`
+	Port        uint16           `yaml:"port" json:"port"`
+	Upstreams   []string         `yaml:"upstreams" json:"upstreams"`
+	Block       []types.Category `yaml:"block" json:"block"`
+	BlockingTTL int              `yaml:"blocking_ttl" json:"blocking_ttl"`
 }
 
 type CacheConfig struct {
@@ -46,10 +47,10 @@ type APIConfig struct {
 	Tokens []string `yaml:"tokens" json:"tokens"`
 }
 
-type ClientLookupConfig struct {
-	Upstream string                   `yaml:"upstream" json:"upstream"`
-	Method   types.ClientLookupMethod `yaml:"method" json:"method"`
-	Clients  map[string]net.IP        `yaml:"clients" json:"clients"`
+type HostnamesConfig struct {
+	Upstream string                     `yaml:"upstream" json:"upstream"`
+	Method   types.HostnameLookupMethod `yaml:"method" json:"method"`
+	Hosts    map[string]net.IP          `yaml:"hosts" json:"hosts"`
 }
 
 type GroupConfig struct {
@@ -120,9 +121,10 @@ func Read(filePath string) error {
 
 	// Set defaults
 	All.DNS = DNSConfig{
-		Port:      53,
-		Upstreams: []string{"1.1.1.1", "8.8.8.8"},
-		Block:     []types.Category{types.CategoryAds, types.CategoryMalware},
+		Port:        53,
+		Upstreams:   []string{"1.1.1.1", "8.8.8.8"},
+		Block:       []types.Category{types.CategoryAds, types.CategoryMalware},
+		BlockingTTL: 300,
 	}
 
 	All.Cache = CacheConfig{

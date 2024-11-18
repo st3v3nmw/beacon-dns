@@ -15,15 +15,14 @@ import (
 )
 
 var (
-	root          = make(map[types.Category]*radix.Tree)
-	treeMu        sync.RWMutex
-	Cache         otter.CacheWithVariableTTL[string, *dnslib.Msg]
-	defaultDNSTTL uint32 = 300
+	root   = make(map[types.Category]*radix.Tree)
+	treeMu sync.RWMutex
+	Cache  otter.CacheWithVariableTTL[string, *dnslib.Msg]
 )
 
 func NewCache() error {
 	var err error
-	Cache, err = otter.MustBuilder[string, *dnslib.Msg](1_048_576).
+	Cache, err = otter.MustBuilder[string, *dnslib.Msg](config.All.Cache.Size).
 		CollectStats().
 		WithVariableTTL().
 		Build()
@@ -166,9 +165,9 @@ func minAnswerTtl(cacheTtl uint32, rr []dnslib.RR) uint32 {
 func forwardToUpstream(r *dnslib.Msg) (*dnslib.Msg, *string, error) {
 	// TODO: Replace this
 	upstream := config.All.DNS.Upstreams[0]
-	addr := fmt.Sprintf("%s:53", upstream)
+	serverAddr := fmt.Sprintf("%s:53", upstream)
 
 	c := new(dnslib.Client)
-	m, _, err := c.Exchange(r, addr)
+	m, _, err := c.Exchange(r, serverAddr)
 	return m, &upstream, err
 }
