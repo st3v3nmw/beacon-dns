@@ -13,6 +13,7 @@ Beacon DNS is a recursive DNS resolver with customizable filtering for malware, 
 - [ ] Safe Search
 - [ ] DNSSEC Validation
 - [ ] Schedules
+- [ ] DHCP
 
 ## Usage
 

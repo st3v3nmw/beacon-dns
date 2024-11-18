@@ -21,9 +21,8 @@ type Config struct {
 	Schedules    []ScheduleConfig   `yaml:"schedules" json:"schedules"`
 	Quotas       []QuotaConfig      `yaml:"quotas" json:"quotas"`
 	QueryLog     QueryLogConfig     `yaml:"querylog" json:"querylog"`
-	Log          LogConfig          `yaml:"log" json:"log"`
-	Sources      SourcesConfig      `yaml:"sources" json:"sources"`
 	DHCP         DHCPConfig         `yaml:"dhcp" json:"dhcp"`
+	Sources      SourcesConfig      `yaml:"sources" json:"sources"`
 }
 
 type DNSConfig struct {
@@ -33,9 +32,8 @@ type DNSConfig struct {
 }
 
 type CacheConfig struct {
-	Enabled bool           `yaml:"enabled" json:"enabled"`
-	Size    int            `yaml:"size" json:"size"`
-	TTL     CacheTTLConfig `yaml:"ttl" json:"ttl"`
+	Size int            `yaml:"size" json:"size"`
+	TTL  CacheTTLConfig `yaml:"ttl" json:"ttl"`
 }
 
 type CacheTTLConfig struct {
@@ -55,9 +53,10 @@ type ClientLookupConfig struct {
 }
 
 type GroupConfig struct {
-	Name    string           `yaml:"name" json:"name"`
-	Devices []string         `yaml:"devices" json:"devices"`
-	Block   []types.Category `yaml:"block" json:"block"`
+	Name       string           `yaml:"name" json:"name"`
+	Devices    []string         `yaml:"devices" json:"devices"`
+	Block      []types.Category `yaml:"block" json:"block"`
+	SafeSearch bool             `yaml:"safe_search" json:"safe_search"`
 }
 
 type ScheduleConfig struct {
@@ -127,8 +126,7 @@ func Read(filePath string) error {
 	}
 
 	All.Cache = CacheConfig{
-		Enabled: true,
-		Size:    100_000,
+		Size: 100_000,
 		TTL: CacheTTLConfig{
 			Min: "15s",
 			Max: "24h",
@@ -139,17 +137,13 @@ func Read(filePath string) error {
 
 	All.QueryLog = QueryLogConfig{
 		Enabled:        true,
-		LogClients:     false,
+		LogClients:     true,
 		QueryRetention: "90d",
 		StatsRetention: "365d",
 	}
 
-	All.Log = LogConfig{Level: "info"}
-
 	All.Sources.UpdateInterval = "24h"
 	All.Sources.Lists = getDefaultSources()
-
-	All.DHCP = DHCPConfig{Enabled: true}
 
 	return yaml.Unmarshal(file, &All)
 }
