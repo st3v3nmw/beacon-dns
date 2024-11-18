@@ -61,7 +61,8 @@ func handleUDPRequest(w dnslib.ResponseWriter, r *dnslib.Msg) {
 			ip = addr.IP.String()
 			hostname = lookupHostname(addr.IP)
 		} else {
-			hostname = redactedHost
+			ip = "redacted"
+			hostname = "redacted"
 		}
 
 		queryType, ok := dnslib.TypeToString[qn.Qtype]
@@ -73,7 +74,7 @@ func handleUDPRequest(w dnslib.ResponseWriter, r *dnslib.Msg) {
 		querylog.QL.Log(
 			querylog.QueryLog{
 				Hostname:       hostname,
-				IP:             &ip,
+				IP:             ip,
 				Domain:         domain,
 				QueryType:      queryType,
 				Cached:         cached,

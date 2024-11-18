@@ -18,8 +18,8 @@ var (
 const schema = `
 CREATE TABLE IF NOT EXISTS queries (
 	id INTEGER PRIMARY KEY,
-	hostname VARCHAR(255) DEFAULT "unknown",
-	ip VARCHAR(50) NULL,
+	hostname VARCHAR(255) NOT NULL,
+	ip VARCHAR(50) NOT NULL,
 	domain VARCHAR(255) NOT NULL,
 	query_type VARCHAR(20) NOT NULL,
 	cached BOOLEAN NOT NULL,
@@ -55,7 +55,7 @@ func NewDB() (err error) {
 
 type QueryLog struct {
 	Hostname       string    `json:"hostname"`
-	IP             *string   `json:"ip"`
+	IP             string    `json:"ip"`
 	Domain         string    `json:"domain"`
 	QueryType      string    `json:"query_type"`
 	Cached         bool      `json:"cached"`

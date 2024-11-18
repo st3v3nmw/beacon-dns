@@ -17,11 +17,6 @@ var (
 	clientMap sync.Map
 )
 
-const (
-	unknownHost  = "unknown"
-	redactedHost = "redacted"
-)
-
 func lookupHostname(ip net.IP) string {
 	ipStr := ip.String()
 	hostname, ok := clientMap.Load(ipStr)
@@ -39,7 +34,7 @@ func lookupHostname(ip net.IP) string {
 		case types.ClientLookupTailscale:
 			hostname = lookupHostnameOnTailscale(ipStr)
 		default:
-			hostname = unknownHost
+			hostname = "unknown"
 		}
 	}
 
@@ -52,7 +47,7 @@ func lookupLocalHostname() string {
 	hostname, err := os.Hostname()
 	if err != nil {
 		slog.Warn("Error retrieving hostname", "error", err)
-		return unknownHost
+		return "unknown"
 	}
 
 	return hostname
@@ -68,7 +63,7 @@ func reverseDNSLookup(ip string) string {
 	addr, err := dnslib.ReverseAddr(ip)
 	if err != nil {
 		slog.Warn("Failed to parse address", "addr", addr)
-		return unknownHost
+		return "unknown"
 	}
 
 	msg := new(dnslib.Msg)
@@ -80,7 +75,7 @@ func reverseDNSLookup(ip string) string {
 
 	if len(m.Answer) == 0 || err != nil {
 		slog.Warn("Reverse DNS lookup failed", "error", err)
-		return unknownHost
+		return "unknown"
 	}
 
 	ans := m.Answer[0].(*dnslib.PTR)

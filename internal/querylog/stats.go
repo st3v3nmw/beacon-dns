@@ -12,7 +12,6 @@ var (
 const getDeviceStatsQuery = `
 SELECT
     hostname,
-    ip,
     COUNT(*) as total_queries,
     COUNT(DISTINCT domain) as unique_domains,
 
@@ -104,6 +103,19 @@ SELECT
         )
     ) as response_codes,
 
+    -- IPs
+    (
+        SELECT json_group_object(ip, cnt)
+        FROM (
+            SELECT ip, COUNT(*) as cnt
+            FROM queries q2
+            WHERE q2.hostname = q.hostname
+            GROUP BY ip
+            ORDER BY cnt DESC
+            LIMIT 10
+        )
+    ) as ips,
+
     -- Time range
     MIN(timestamp) as first_seen,
     MAX(timestamp) as last_seen
@@ -114,7 +126,6 @@ ORDER BY total_queries DESC;
 
 type DeviceStats struct {
 	Hostname                  string         `json:"hostname"`
-	IP                        string         `json:"ip"`
 	TotalQueries              int            `json:"total_queries"`
 	UniqueDomains             int            `json:"unique_domains"`
 	CachedQueries             int            `json:"cached_queries"`
@@ -131,6 +142,7 @@ type DeviceStats struct {
 	ResolvedDomains           map[string]int `json:"resolved_domains"`
 	BlockedDomains            map[string]int `json:"blocked_domains"`
 	ResponseCodes             map[string]int `json:"response_codes"`
+	IPs                       map[string]int `json:"ips"`
 	FirstSeen                 time.Time      `json:"first_seen"`
 	LastSeen                  time.Time      `json:"last_seen"`
 }
@@ -142,14 +154,13 @@ func GetDeviceStats() ([]DeviceStats, error) {
 	}
 	defer rows.Close()
 
-	var stats []DeviceStats
+	stats := make([]DeviceStats, 0)
 	var query_types, block_reasons, upstreams, resolved_domains string
-	var blocked_domains, response_codes, first_seen, last_seen string
+	var blocked_domains, response_codes, ips, first_seen, last_seen string
 	for rows.Next() {
 		var s DeviceStats
 		err := rows.Scan(
 			&s.Hostname,
-			&s.IP,
 			&s.TotalQueries,
 			&s.UniqueDomains,
 			&s.CachedQueries,
@@ -166,6 +177,7 @@ func GetDeviceStats() ([]DeviceStats, error) {
 			&resolved_domains,
 			&blocked_domains,
 			&response_codes,
+			&ips,
 			&first_seen,
 			&last_seen,
 		)
@@ -179,6 +191,7 @@ func GetDeviceStats() ([]DeviceStats, error) {
 		json.Unmarshal([]byte(resolved_domains), &s.ResolvedDomains)
 		json.Unmarshal([]byte(blocked_domains), &s.BlockedDomains)
 		json.Unmarshal([]byte(response_codes), &s.ResponseCodes)
+		json.Unmarshal([]byte(ips), &s.IPs)
 		s.FirstSeen, _ = time.Parse(sqliteTimestampLayout, first_seen)
 		s.LastSeen, _ = time.Parse(sqliteTimestampLayout, last_seen)
 		stats = append(stats, s)
