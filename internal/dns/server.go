@@ -20,37 +20,16 @@ func NewUDPServer(addr string) {
 		Net:  "udp",
 	}
 
-	UDP.Handler = dnslib.HandlerFunc(handleUDPRequest)
+	UDP.Handler = dnslib.HandlerFunc(handleRequest)
 }
 
-func handleUDPRequest(w dnslib.ResponseWriter, r *dnslib.Msg) {
+func handleRequest(w dnslib.ResponseWriter, r *dnslib.Msg) {
 	start := time.Now()
 	if len(r.Question) == 0 {
 		return
 	}
 
-	var m *dnslib.Msg
-	qn := r.Question[0]
-	domain := strings.TrimSuffix(qn.Name, ".")
-
-	blocked, rules := isBlocked(domain)
-	cached := false
-	var reason, upstream *string
-	if blocked {
-		m = blockDomainOnUDP(r)
-		blocked = true
-		reason = (*string)(rules[0].Category)
-	} else {
-		var err error
-		m, cached, upstream, err = resolve(r)
-
-		if err != nil {
-			m = &dnslib.Msg{}
-			m.SetReply(r)
-			m.RecursionAvailable = true
-			m.SetRcode(r, dnslib.RcodeServerFailure)
-		}
-	}
+	m, cached, blocked, rules, upstream := process(r)
 
 	w.WriteMsg(m)
 
@@ -61,13 +40,19 @@ func handleUDPRequest(w dnslib.ResponseWriter, r *dnslib.Msg) {
 			ip = addr.IP.String()
 			hostname = lookupHostname(addr.IP)
 		} else {
-			ip = "redacted"
-			hostname = "redacted"
+			ip = "-"
+			hostname = "-"
 		}
 
+		qn := r.Question[0]
 		queryType, ok := dnslib.TypeToString[qn.Qtype]
 		if !ok {
 			queryType = "UNKNOWN"
+		}
+
+		var block_reason *string
+		if blocked {
+			block_reason = (*string)(rules[0].Category)
 		}
 
 		end := time.Now()
@@ -75,11 +60,11 @@ func handleUDPRequest(w dnslib.ResponseWriter, r *dnslib.Msg) {
 			querylog.QueryLog{
 				Hostname:       hostname,
 				IP:             ip,
-				Domain:         domain,
+				Domain:         strings.TrimSuffix(qn.Name, "."),
 				QueryType:      queryType,
 				Cached:         cached,
 				Blocked:        blocked,
-				BlockReason:    reason,
+				BlockReason:    block_reason,
 				Upstream:       upstream,
 				ResponseCode:   dnslib.RcodeToString[m.Rcode],
 				ResponseTimeMs: int(end.UnixMilli() - start.UnixMilli()),
@@ -89,7 +74,7 @@ func handleUDPRequest(w dnslib.ResponseWriter, r *dnslib.Msg) {
 	}
 }
 
-func blockDomainOnUDP(r *dnslib.Msg) *dnslib.Msg {
+func blockFQDN(r *dnslib.Msg) *dnslib.Msg {
 	m := new(dnslib.Msg)
 	m.SetReply(r)
 	m.RecursionAvailable = true
@@ -102,7 +87,7 @@ func blockDomainOnUDP(r *dnslib.Msg) *dnslib.Msg {
 				Name:   qn.Name,
 				Rrtype: dnslib.TypeA,
 				Class:  dnslib.ClassINET,
-				Ttl:    uint32(config.All.DNS.BlockingTTL),
+				Ttl:    300,
 			},
 			A: net.ParseIP("0.0.0.0"),
 		}
@@ -114,7 +99,7 @@ func blockDomainOnUDP(r *dnslib.Msg) *dnslib.Msg {
 				Name:   qn.Name,
 				Rrtype: dnslib.TypeAAAA,
 				Class:  dnslib.ClassINET,
-				Ttl:    uint32(config.All.DNS.BlockingTTL),
+				Ttl:    300,
 			},
 			AAAA: net.ParseIP("::"),
 		}

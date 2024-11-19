@@ -33,6 +33,9 @@ func New(addr string) {
 	// Statistics
 	e.GET("/api/stats/devices", getDeviceStats)
 
+	// Trace
+	e.GET("/api/trace", trace)
+
 	API = &APIService{
 		address: addr,
 		echo:    e,

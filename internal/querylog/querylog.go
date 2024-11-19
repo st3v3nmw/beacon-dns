@@ -32,14 +32,6 @@ CREATE TABLE IF NOT EXISTS queries (
 );
 `
 
-// CREATE TABLE IF NOT EXISTS quota_usage (
-//     id INTEGER PRIMARY KEY,
-// 	   hostname VARCHAR(255) DEFAULT "unknown",
-//     category VARCHAR(50) NOT NULL,
-//     estimated_seconds INTEGER NOT NULL,
-// 	   last_seen DATETIME DEFAULT CURRENT_TIMESTAMP
-// );
-
 func NewDB() (err error) {
 	DB, err = sql.Open("sqlite3", DataDir+"/querylog.db")
 	if err != nil {

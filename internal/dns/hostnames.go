@@ -27,14 +27,14 @@ func lookupHostname(ip net.IP) string {
 	if h, ok := config.All.ClientLookup.Clients[ipStr]; ok {
 		hostname = h
 	} else if ip.IsLoopback() {
-		hostname = lookupLocalHostname()
+		hostname = lookupLocalHostname(ipStr)
 	} else {
 		method := config.All.ClientLookup.Method
 		switch method {
 		case types.ClientLookupTailscale:
 			hostname = lookupHostnameOnTailscale(ipStr)
 		default:
-			hostname = "unknown"
+			hostname = ipStr
 		}
 	}
 
@@ -43,11 +43,11 @@ func lookupHostname(ip net.IP) string {
 	return hostname.(string)
 }
 
-func lookupLocalHostname() string {
+func lookupLocalHostname(ip string) string {
 	hostname, err := os.Hostname()
 	if err != nil {
 		slog.Warn("Error retrieving hostname", "error", err)
-		return "unknown"
+		return ip
 	}
 
 	return hostname
@@ -63,7 +63,7 @@ func reverseDNSLookup(ip string) string {
 	addr, err := dnslib.ReverseAddr(ip)
 	if err != nil {
 		slog.Warn("Failed to parse address", "addr", addr)
-		return "unknown"
+		return ip
 	}
 
 	msg := new(dnslib.Msg)
@@ -75,7 +75,7 @@ func reverseDNSLookup(ip string) string {
 
 	if len(m.Answer) == 0 || err != nil {
 		slog.Warn("Reverse DNS lookup failed", "error", err)
-		return "unknown"
+		return ip
 	}
 
 	ans := m.Answer[0].(*dnslib.PTR)

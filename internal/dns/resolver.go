@@ -3,6 +3,7 @@ package dns
 import (
 	"fmt"
 	"math"
+	"net"
 	"strings"
 	"sync"
 	"time"
@@ -33,7 +34,7 @@ func NewCache() error {
 	return nil
 }
 
-type Rule struct {
+type ListRule struct {
 	List     string          `json:"list"`
 	Category *types.Category `json:"category"`
 	Action   *types.Action   `json:"action"`
@@ -50,15 +51,15 @@ func LoadListToMemory(name string, action types.Action, categories []types.Categ
 		}
 
 		for _, domain := range domains {
-			key := reverseDomain(domain)
+			key := reverseFQDN(domain)
 
 			raw, found := tree.Get(key)
-			var rules []Rule
+			var rules []ListRule
 			if found {
-				rules = raw.([]Rule)
+				rules = raw.([]ListRule)
 			}
 
-			rules = append(rules, Rule{
+			rules = append(rules, ListRule{
 				List:     name,
 				Category: &category,
 				Action:   &action,
@@ -71,11 +72,56 @@ func LoadListToMemory(name string, action types.Action, categories []types.Categ
 	}
 }
 
-func isBlocked(domain string) (bool, []Rule) {
+func process(r *dnslib.Msg) (*dnslib.Msg, bool, bool, []ListRule, *string) {
+	var m *dnslib.Msg
+	qn := r.Question[0]
+	fqdn := strings.TrimSuffix(qn.Name, ".")
+
+	if qn.Qtype == dnslib.TypePTR {
+		parts := strings.Split(qn.Name, ".")
+		for i := 0; i < len(parts)/2; i++ {
+			j := len(parts) - i - 1
+			parts[i], parts[j] = parts[j], parts[i]
+		}
+
+		ipStr := strings.Join(parts[:4], ".")
+		ip := net.ParseIP(ipStr)
+		if ip.IsPrivate() {
+			// Don't forward reverse DNS lookups for private IP ranges
+			m = &dnslib.Msg{}
+			m.SetReply(r)
+			m.RecursionAvailable = true
+			m.SetRcode(r, dnslib.RcodeNameError) // NXDomain
+			return m, false, true, nil, nil
+		}
+	}
+
+	blocked, rules := isBlocked(fqdn)
+	cached := false
+	var upstream *string
+	if blocked {
+		m = blockFQDN(r)
+		blocked = true
+	} else {
+		var err error
+		m, cached, upstream, err = resolve(r)
+
+		if err != nil {
+			m = &dnslib.Msg{}
+			m.SetReply(r)
+			m.RecursionAvailable = true
+			m.SetRcode(r, dnslib.RcodeServerFailure)
+		}
+	}
+
+	return m, cached, blocked, rules, upstream
+}
+
+func isBlocked(domain string) (bool, []ListRule) {
 	treeMu.RLock()
 	defer treeMu.RUnlock()
 
-	key := reverseDomain(domain)
+	key := reverseFQDN(domain)
 	for _, category := range config.All.DNS.Block {
 		blocked, rules := isBlockedByCategory(key, domain, category)
 		if blocked {
@@ -85,7 +131,7 @@ func isBlocked(domain string) (bool, []Rule) {
 	return false, nil
 }
 
-func isBlockedByCategory(key string, domain string, category types.Category) (bool, []Rule) {
+func isBlockedByCategory(key string, domain string, category types.Category) (bool, []ListRule) {
 	tree, ok := root[category]
 	if !ok {
 		return false, nil
@@ -97,12 +143,12 @@ func isBlockedByCategory(key string, domain string, category types.Category) (bo
 		// in some cases like key = com.serverfault & blocked = com.server
 		// this matches, even though it shouldn't
 		// so we need to check that serverfault.com has suffix server.com
-		base := reverseDomain(string(prefix))
+		base := reverseFQDN(string(prefix))
 		if !strings.HasSuffix(domain, base) {
 			return false, nil
 		}
 
-		rules := raw.([]Rule)
+		rules := raw.([]ListRule)
 		for _, rule := range rules {
 			if *rule.Action == types.ActionAllow {
 				return false, rules
@@ -117,8 +163,8 @@ func isBlockedByCategory(key string, domain string, category types.Category) (bo
 
 // Reverse domain for better tree structure
 // e.g., com.example -> example.com
-func reverseDomain(domain string) string {
-	parts := strings.Split(domain, ".")
+func reverseFQDN(fqdn string) string {
+	parts := strings.Split(fqdn, ".")
 	for i := 0; i < len(parts)/2; i++ {
 		j := len(parts) - i - 1
 		parts[i], parts[j] = parts[j], parts[i]

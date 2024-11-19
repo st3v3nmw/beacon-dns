@@ -19,17 +19,15 @@ type Config struct {
 	ClientLookup ClientLookupConfig `yaml:"client_lookup" json:"client_lookup"`
 	Groups       []GroupConfig      `yaml:"groups" json:"groups"`
 	Schedules    []ScheduleConfig   `yaml:"schedules" json:"schedules"`
-	Quotas       []QuotaConfig      `yaml:"quotas" json:"quotas"`
 	QueryLog     QueryLogConfig     `yaml:"querylog" json:"querylog"`
 	DHCP         DHCPConfig         `yaml:"dhcp" json:"dhcp"`
 	Sources      SourcesConfig      `yaml:"sources" json:"sources"`
 }
 
 type DNSConfig struct {
-	Port        uint16           `yaml:"port" json:"port"`
-	Upstreams   []string         `yaml:"upstreams" json:"upstreams"`
-	Block       []types.Category `yaml:"block" json:"block"`
-	BlockingTTL int              `yaml:"blocking_ttl" json:"blocking_ttl"`
+	Port      uint16           `yaml:"port" json:"port"`
+	Upstreams []string         `yaml:"upstreams" json:"upstreams"`
+	Block     []types.Category `yaml:"block" json:"block"`
 }
 
 type CacheConfig struct {
@@ -43,8 +41,7 @@ type CacheTTLConfig struct {
 }
 
 type APIConfig struct {
-	Port   uint16   `yaml:"port" json:"port"`
-	Tokens []string `yaml:"tokens" json:"tokens"`
+	Port uint16 `yaml:"port" json:"port"`
 }
 
 type ClientLookupConfig struct {
@@ -77,23 +74,11 @@ type ScheduleTime struct {
 	End   string `yaml:"end" json:"end"`
 }
 
-type QuotaConfig struct {
-	Name       string   `yaml:"name" json:"name"`
-	ApplyTo    []string `yaml:"apply_to" json:"apply_to"`
-	DailyLimit string   `yaml:"daily_limit" json:"daily_limit"`
-	Categories []string `yaml:"categories" json:"categories"`
-}
-
 type QueryLogConfig struct {
 	Enabled        bool   `yaml:"enabled" json:"enabled"`
 	LogClients     bool   `yaml:"log_clients" json:"log_clients"`
 	QueryRetention string `yaml:"query_retention" json:"query_retention"`
 	StatsRetention string `yaml:"stats_retention" json:"stats_retention"`
-}
-
-type LogConfig struct {
-	Level string `yaml:"level" json:"level"`
-	File  string `yaml:"file" json:"file"`
 }
 
 type DHCPConfig struct {
@@ -121,10 +106,9 @@ func Read(filePath string) error {
 
 	// Set defaults
 	All.DNS = DNSConfig{
-		Port:        53,
-		Upstreams:   []string{"1.1.1.1", "8.8.8.8"},
-		Block:       []types.Category{types.CategoryAds, types.CategoryMalware},
-		BlockingTTL: 300,
+		Port:      53,
+		Upstreams: []string{"1.1.1.1", "8.8.8.8"},
+		Block:     []types.Category{types.CategoryAds, types.CategoryMalware},
 	}
 
 	All.Cache = CacheConfig{

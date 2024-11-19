@@ -50,7 +50,7 @@
             block:
               - ads
               - malware
-            blocking_ttl: 300
+              - adult
 
           cache:
             size: 100000
@@ -61,7 +61,6 @@
           api:
             port: 80
 
-          # TODO: remove this block from the sample config
           client_lookup:
             upstream: 100.100.100.100
             method: tailscale

@@ -11,7 +11,7 @@ var (
 
 const getDeviceStatsQuery = `
 SELECT
-    hostname,
+    hostname as client,
     COUNT(*) as total_queries,
     COUNT(DISTINCT domain) as unique_domains,
 
@@ -125,11 +125,11 @@ ORDER BY total_queries DESC;
 `
 
 type DeviceStats struct {
-	Hostname                  string         `json:"hostname"`
+	Client                    string         `json:"client"`
 	TotalQueries              int            `json:"total_queries"`
 	UniqueDomains             int            `json:"unique_domains"`
 	CachedQueries             int            `json:"cached_queries"`
-	CacheHitRatio             float64        `json:"cached_hit_ratio"`
+	CacheHitRatio             float64        `json:"cache_hit_ratio"`
 	BlockedQueries            int            `json:"blocked_queries"`
 	BlockRatio                float64        `json:"block_ratio"`
 	AvgResponseTimeMs         float64        `json:"avg_response_time_ms"`
@@ -160,7 +160,7 @@ func GetDeviceStats() ([]DeviceStats, error) {
 	for rows.Next() {
 		var s DeviceStats
 		err := rows.Scan(
-			&s.Hostname,
+			&s.Client,
 			&s.TotalQueries,
 			&s.UniqueDomains,
 			&s.CachedQueries,
