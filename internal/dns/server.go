@@ -29,17 +29,15 @@ func handleRequest(w dnslib.ResponseWriter, r *dnslib.Msg) {
 		return
 	}
 
-	m, cached, blocked, rules, upstream := process(r)
+	addr := w.RemoteAddr().(*net.UDPAddr)
+	ip := addr.IP.String()
+	hostname := lookupHostname(addr.IP)
+	m, cached, blocked, rules, upstream := process(r, hostname)
 
 	w.WriteMsg(m)
 
 	if config.All.QueryLog.Enabled {
-		var hostname, ip string
-		if config.All.QueryLog.LogClients {
-			addr := w.RemoteAddr().(*net.UDPAddr)
-			ip = addr.IP.String()
-			hostname = lookupHostname(addr.IP)
-		} else {
+		if !config.All.QueryLog.LogClients {
 			ip = "-"
 			hostname = "-"
 		}
@@ -51,7 +49,7 @@ func handleRequest(w dnslib.ResponseWriter, r *dnslib.Msg) {
 		}
 
 		var block_reason *string
-		if blocked {
+		if blocked && len(rules) > 0 {
 			block_reason = (*string)(rules[0].Category)
 		}
 
@@ -68,7 +66,7 @@ func handleRequest(w dnslib.ResponseWriter, r *dnslib.Msg) {
 				Upstream:       upstream,
 				ResponseCode:   dnslib.RcodeToString[m.Rcode],
 				ResponseTimeMs: int(end.UnixMilli() - start.UnixMilli()),
-				Timestamp:      end,
+				Timestamp:      end.UTC(),
 			},
 		)
 	}

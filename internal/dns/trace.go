@@ -2,6 +2,7 @@ package dns
 
 import (
 	"fmt"
+	"net"
 	"strconv"
 	"time"
 
@@ -32,15 +33,15 @@ func getQType(strVal string) (uint16, error) {
 }
 
 type Trace struct {
-	Response       string     `json:"response"`
-	Cached         bool       `json:"cached"`
-	Blocked        bool       `json:"blocked"`
-	ListRules      []ListRule `json:"list_rules"`
-	Upstream       *string    `json:"upstream"`
-	ResponseTimeMs int        `json:"response_time_ms"`
+	Response       string  `json:"response"`
+	Cached         bool    `json:"cached"`
+	Blocked        bool    `json:"blocked"`
+	Rules          []Rule  `json:"rules"`
+	Upstream       *string `json:"upstream"`
+	ResponseTimeMs int     `json:"response_time_ms"`
 }
 
-func HandleTrace(fqdn string, qTypeStr string) (*Trace, error) {
+func HandleTrace(fqdn, qTypeStr, ipStr string) (*Trace, error) {
 	validate := validator.New(validator.WithRequiredStructEnabled())
 	if err := validate.Var(fqdn, "fqdn"); err != nil {
 		return nil, fmt.Errorf("name must be a valid fqdn")
@@ -66,15 +67,16 @@ func HandleTrace(fqdn string, qTypeStr string) (*Trace, error) {
 		},
 	}
 
-	m, cached, blocked, rules, upstream := process(r)
-	end := time.Now()
+	hostname := lookupHostname(net.ParseIP(ipStr))
+	m, cached, blocked, rules, upstream := process(r, hostname)
 
+	end := time.Now()
 	return &Trace{
 		Response:       m.String(),
 		Cached:         cached,
 		Blocked:        blocked,
 		Upstream:       upstream,
-		ListRules:      rules,
+		Rules:          rules,
 		ResponseTimeMs: int(end.UnixMilli() - start.UnixMilli()),
 	}, nil
 }

@@ -25,7 +25,7 @@ func trace(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, err)
 	}
 
-	trace, err := dns.HandleTrace(name, qtype)
+	trace, err := dns.HandleTrace(name, qtype, c.RealIP())
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}

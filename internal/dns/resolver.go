@@ -2,7 +2,6 @@ package dns
 
 import (
 	"fmt"
-	"math"
 	"net"
 	"strings"
 	"sync"
@@ -16,9 +15,11 @@ import (
 )
 
 var (
-	root   = make(map[types.Category]*radix.Tree)
-	treeMu sync.RWMutex
-	Cache  otter.CacheWithVariableTTL[string, *dnslib.Msg]
+	root        = make(map[types.Category]*radix.Tree)
+	treeMu      sync.RWMutex
+	Cache       otter.CacheWithVariableTTL[string, *dnslib.Msg]
+	maxCacheTTL uint32
+	minCacheTTL uint32
 )
 
 func NewCache() error {
@@ -31,10 +32,13 @@ func NewCache() error {
 		return err
 	}
 
+	maxCacheTTL = uint32(config.All.Cache.TTL.Max.Seconds())
+	minCacheTTL = uint32(config.All.Cache.TTL.Min.Seconds())
+
 	return nil
 }
 
-type ListRule struct {
+type Rule struct {
 	List     string          `json:"list"`
 	Category *types.Category `json:"category"`
 	Action   *types.Action   `json:"action"`
@@ -54,12 +58,12 @@ func LoadListToMemory(name string, action types.Action, categories []types.Categ
 			key := reverseFQDN(domain)
 
 			raw, found := tree.Get(key)
-			var rules []ListRule
+			var rules []Rule
 			if found {
-				rules = raw.([]ListRule)
+				rules = raw.([]Rule)
 			}
 
-			rules = append(rules, ListRule{
+			rules = append(rules, Rule{
 				List:     name,
 				Category: &category,
 				Action:   &action,
@@ -72,7 +76,7 @@ func LoadListToMemory(name string, action types.Action, categories []types.Categ
 	}
 }
 
-func process(r *dnslib.Msg) (*dnslib.Msg, bool, bool, []ListRule, *string) {
+func process(r *dnslib.Msg, client string) (*dnslib.Msg, bool, bool, []Rule, *string) {
 	var m *dnslib.Msg
 	qn := r.Question[0]
 	fqdn := strings.TrimSuffix(qn.Name, ".")
@@ -96,7 +100,7 @@ func process(r *dnslib.Msg) (*dnslib.Msg, bool, bool, []ListRule, *string) {
 		}
 	}
 
-	blocked, rules := isBlocked(fqdn)
+	blocked, rules := isBlocked(fqdn, client)
 	cached := false
 	var upstream *string
 	if blocked {
@@ -117,13 +121,13 @@ func process(r *dnslib.Msg) (*dnslib.Msg, bool, bool, []ListRule, *string) {
 	return m, cached, blocked, rules, upstream
 }
 
-func isBlocked(domain string) (bool, []ListRule) {
+func isBlocked(domain, client string) (bool, []Rule) {
 	treeMu.RLock()
 	defer treeMu.RUnlock()
 
 	key := reverseFQDN(domain)
-	for _, category := range config.All.DNS.Block {
-		blocked, rules := isBlockedByCategory(key, domain, category)
+	for category := range root {
+		blocked, rules := isBlockedByCategory(key, domain, client, category)
 		if blocked {
 			return blocked, rules
 		}
@@ -131,7 +135,7 @@ func isBlocked(domain string) (bool, []ListRule) {
 	return false, nil
 }
 
-func isBlockedByCategory(key string, domain string, category types.Category) (bool, []ListRule) {
+func isBlockedByCategory(key, domain, client string, category types.Category) (bool, []Rule) {
 	tree, ok := root[category]
 	if !ok {
 		return false, nil
@@ -148,14 +152,19 @@ func isBlockedByCategory(key string, domain string, category types.Category) (bo
 			return false, nil
 		}
 
-		rules := raw.([]ListRule)
+		rules := raw.([]Rule)
 		for _, rule := range rules {
 			if *rule.Action == types.ActionAllow {
 				return false, rules
 			}
 		}
 
-		return len(rules) > 0, rules
+		blocked := len(rules) > 0
+		if blocked {
+			blocked = config.All.IsCategoryBlocked(client, category)
+		}
+
+		return blocked, rules
 	}
 
 	return false, nil
@@ -177,6 +186,8 @@ func resolve(r *dnslib.Msg) (*dnslib.Msg, bool, *string, error) {
 	key := fmt.Sprintf("%s-%d-%d", qn.Name, qn.Qtype, qn.Qclass)
 	cached, ok := Cache.Get(key)
 	if ok {
+		// TODO: This has the TTL of the original request
+		// but time has passed so the TTL should be lower!
 		m := cached.Copy()
 		m.Id = r.Id
 		return m, true, nil, nil
@@ -187,11 +198,10 @@ func resolve(r *dnslib.Msg) (*dnslib.Msg, bool, *string, error) {
 		return nil, false, upstream, err
 	}
 
-	maxUint32 := uint32(math.MaxUint32)
-	cacheTtl := minAnswerTtl(maxUint32, m.Answer)
+	cacheTtl := minAnswerTtl(maxCacheTTL, m.Answer)
 	cacheTtl = minAnswerTtl(cacheTtl, m.Ns)
 	cacheTtl = minAnswerTtl(cacheTtl, m.Extra)
-	if cacheTtl >= 15 && cacheTtl != maxUint32 {
+	if cacheTtl >= minCacheTTL && len(m.Answer)+len(m.Ns)+len(m.Extra) > 0 {
 		Cache.Set(key, m, time.Duration(cacheTtl)*time.Second)
 	}
 

@@ -39,7 +39,6 @@ func lookupHostname(ip net.IP) string {
 	}
 
 	clientMap.Store(ipStr, hostname)
-
 	return hostname.(string)
 }
 

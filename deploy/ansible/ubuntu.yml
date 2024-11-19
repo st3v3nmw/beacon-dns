@@ -47,10 +47,7 @@
             upstreams:
               - 1.1.1.1
               - 8.8.8.8
-            block:
-              - ads
-              - malware
-              - adult
+            timezone: Africa/Nairobi
 
           cache:
             size: 100000
@@ -64,6 +61,42 @@
           client_lookup:
             upstream: 100.100.100.100
             method: tailscale
+
+          groups:
+            all:
+              block:
+                - ads
+                - malware
+                - adult
+
+          schedules:
+            focus:
+              apply_to:
+                - all
+              when:
+                - days: ["mon", "tue", "wed", "thur", "fri"]
+                  periods:
+                    - start: "08:00"
+                      end: "18:00"
+              block:
+                - social-media
+                - video-streaming
+                - gaming
+                - dating
+
+            bedtime:
+              apply_to:
+                - all
+              when:
+                - days: ["sun", "mon", "tue", "wed", "thur", "fri", "sat"]
+                  periods:
+                    - start: "22:00"
+                      end: "06:00"
+              block:
+                - social-media
+                - video-streaming
+                - gaming
+                - dating
 
           querylog:
             enabled: true

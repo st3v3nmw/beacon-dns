@@ -22,7 +22,9 @@ func New(addr string) {
 	e.Validator = &customValidator{validator: validator.New()}
 
 	// Home
-	e.GET("/api", home)
+	e.GET("/api", func(c echo.Context) error {
+		return c.String(http.StatusOK, "Beacon DNS API")
+	})
 
 	// Config
 	e.GET("/api/config", getConfig)
@@ -56,8 +58,4 @@ func (cv *customValidator) Validate(i interface{}) error {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 	return nil
-}
-
-func home(c echo.Context) error {
-	return c.String(http.StatusOK, "Beacon DNS API")
 }

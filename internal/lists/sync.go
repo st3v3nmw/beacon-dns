@@ -3,6 +3,7 @@ package lists
 import (
 	"context"
 	"log/slog"
+	"slices"
 	"time"
 
 	"github.com/st3v3nmw/beacon/internal/config"
@@ -19,7 +20,8 @@ func Sync(ctx context.Context) error {
 		return err
 	}
 
-	ticker := time.NewTicker(24 * time.Hour)
+	interval := config.All.Sources.UpdateInterval
+	ticker := time.NewTicker(interval)
 	go func() {
 		for range ticker.C {
 			if err := syncBlockListsWithUpstream(); err != nil {
@@ -33,7 +35,12 @@ func Sync(ctx context.Context) error {
 
 func syncBlockListsWithUpstream() error {
 	var err error
+	blocked := config.All.BlockedCategories()
 	for _, listConf := range config.All.Sources.Lists {
+		if !anyCategoryBlocked(listConf.Categories, blocked) {
+			continue
+		}
+
 		if listConf.Format == types.SourceFormatIps {
 			// TODO: Parse these
 			continue
@@ -81,4 +88,13 @@ func syncBlockListsWithUpstream() error {
 
 	slog.Info(" Lists loaded into memory.")
 	return err
+}
+
+func anyCategoryBlocked(categories, blocked []types.Category) bool {
+	for _, cat := range categories {
+		if slices.Contains(blocked, cat) {
+			return true
+		}
+	}
+	return false
 }
