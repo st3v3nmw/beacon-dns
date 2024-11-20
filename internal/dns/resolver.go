@@ -126,7 +126,10 @@ func isBlocked(domain, client string) (bool, *string) {
 
 	key := reverseFQDN(domain)
 	for category := range root {
-		blocked, _ := isBlockedByCategory(key, domain, client, category)
+		blocked, _ := isBlockedByCategory(key, domain, category)
+		if blocked {
+			blocked = config.All.IsClientBlocked(client, category)
+		}
 
 		if blocked {
 			cat := string(category)
@@ -137,7 +140,7 @@ func isBlocked(domain, client string) (bool, *string) {
 	return false, nil
 }
 
-func isBlockedByCategory(key, domain, client string, category types.Category) (bool, []Rule) {
+func isBlockedByCategory(key, domain string, category types.Category) (bool, []Rule) {
 	tree, ok := root[category]
 	if !ok {
 		return false, nil
@@ -161,12 +164,7 @@ func isBlockedByCategory(key, domain, client string, category types.Category) (b
 			}
 		}
 
-		blocked := len(rules) > 0
-		if blocked {
-			blocked = config.All.IsCategoryBlocked(client, category)
-		}
-
-		return blocked, rules
+		return len(rules) > 0, rules
 	}
 
 	return false, nil

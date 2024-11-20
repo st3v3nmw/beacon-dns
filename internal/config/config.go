@@ -51,37 +51,25 @@ func (c *Config) BlockedCategories() []types.Category {
 	return blocked
 }
 
-func (c *Config) Trace(client string, cat types.Category) (map[string]*GroupConfig, map[string]*ScheduleConfig) {
-	groupsWithCat := map[string]*GroupConfig{}
-	groupsWithClient := map[string]bool{}
+func (c *Config) Trace(cat types.Category) (map[string]*GroupConfig, map[string]*ScheduleConfig) {
+	groups := map[string]*GroupConfig{}
 	for name, group := range c.Groups {
-		clientInGroup := len(group.Devices) == 0 || group.devices[client]
-		if clientInGroup {
-			groupsWithClient[name] = true
-
-			if group.block[cat] {
-				groupsWithCat[name] = group
-			}
+		if group.block[cat] {
+			groups[name] = group
 		}
 	}
 
 	schedules := map[string]*ScheduleConfig{}
 	for name, sched := range c.Schedules {
-		if !sched.block[cat] {
-			continue
-		}
-
-		for _, group := range sched.ApplyTo {
-			if _, ok := groupsWithClient[group]; ok {
-				schedules[name] = sched
-			}
+		if sched.block[cat] {
+			schedules[name] = sched
 		}
 	}
 
-	return groupsWithCat, schedules
+	return groups, schedules
 }
 
-func (c *Config) IsCategoryBlocked(client string, category types.Category) bool {
+func (c *Config) IsClientBlocked(client string, category types.Category) bool {
 	// Check all groups
 	groups := map[string]bool{}
 	for name, group := range c.Groups {
