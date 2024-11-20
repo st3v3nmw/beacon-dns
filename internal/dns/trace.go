@@ -36,7 +36,7 @@ type Trace struct {
 	Response       string  `json:"response"`
 	Cached         bool    `json:"cached"`
 	Blocked        bool    `json:"blocked"`
-	Rules          []Rule  `json:"rules"`
+	Summary        string  `json:"summary"`
 	Upstream       *string `json:"upstream"`
 	ResponseTimeMs int     `json:"response_time_ms"`
 }
@@ -68,7 +68,7 @@ func HandleTrace(fqdn, qTypeStr, ipStr string) (*Trace, error) {
 	}
 
 	hostname := lookupHostname(net.ParseIP(ipStr))
-	m, cached, blocked, rules, upstream := process(r, hostname)
+	m, cached, blocked, summary, _, upstream := process(r, hostname, true)
 
 	end := time.Now()
 	return &Trace{
@@ -76,7 +76,7 @@ func HandleTrace(fqdn, qTypeStr, ipStr string) (*Trace, error) {
 		Cached:         cached,
 		Blocked:        blocked,
 		Upstream:       upstream,
-		Rules:          rules,
+		Summary:        summary,
 		ResponseTimeMs: int(end.UnixMilli() - start.UnixMilli()),
 	}, nil
 }
