@@ -32,7 +32,7 @@ func handleRequest(w dnslib.ResponseWriter, r *dnslib.Msg) {
 	addr := w.RemoteAddr().(*net.UDPAddr)
 	ip := addr.IP.String()
 	hostname := lookupHostname(addr.IP)
-	m, cached, blocked, _, category, upstream := process(r, hostname, false)
+	m, cached, blocked, category, upstream := process(r, hostname)
 
 	w.WriteMsg(m)
 

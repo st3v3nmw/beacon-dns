@@ -7,11 +7,6 @@ import (
 	"github.com/st3v3nmw/beacon/internal/dns"
 )
 
-const (
-	dnsJsonDataType   = "application/dns-json"
-	dnsWireFormatType = "application/dns-message"
-)
-
 func trace(c echo.Context) error {
 	name := c.QueryParam("name")
 	if name == "" {
@@ -19,13 +14,7 @@ func trace(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, err)
 	}
 
-	qtype := c.QueryParam("type")
-	if qtype == "" {
-		err := "`qtype` query param must be provided"
-		return echo.NewHTTPError(http.StatusBadRequest, err)
-	}
-
-	trace, err := dns.HandleTrace(name, qtype, c.RealIP())
+	trace, err := dns.HandleTrace(name, c.RealIP())
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}

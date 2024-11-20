@@ -2,81 +2,64 @@ package dns
 
 import (
 	"fmt"
+	"maps"
 	"net"
-	"strconv"
-	"time"
+	"slices"
+	"strings"
 
 	"github.com/go-playground/validator/v10"
-	dnslib "github.com/miekg/dns"
+	"github.com/st3v3nmw/beacon/internal/config"
+	"github.com/st3v3nmw/beacon/internal/types"
 )
 
-func getQType(strVal string) (uint16, error) {
-	intVal, err := strconv.Atoi(strVal)
-	if err == nil {
-		// confirm that the type exists
-		qtype := uint16(intVal)
-		_, ok := dnslib.TypeToString[qtype]
-		if !ok {
-			return qtype, fmt.Errorf("unknown type provided")
-		}
-
-		return qtype, nil
-	}
-
-	// the string representation was provided, e.g. A, AAAA
-	qtype, ok := dnslib.StringToType[strVal]
-	if !ok {
-		return 0, fmt.Errorf("unknown type provided")
-	}
-
-	return qtype, nil
-}
-
 type Trace struct {
-	Response       string  `json:"response"`
-	Cached         bool    `json:"cached"`
-	Blocked        bool    `json:"blocked"`
-	Summary        string  `json:"summary"`
-	Upstream       *string `json:"upstream"`
-	ResponseTimeMs int     `json:"response_time_ms"`
+	Lists     []Rule                            `json:"lists"`
+	Groups    map[string]*config.GroupConfig    `json:"groups"`
+	Schedules map[string]*config.ScheduleConfig `json:"schedules"`
 }
 
-func HandleTrace(fqdn, qTypeStr, ipStr string) (*Trace, error) {
+func HandleTrace(fqdn, ipStr string) (*Trace, error) {
 	validate := validator.New(validator.WithRequiredStructEnabled())
 	if err := validate.Var(fqdn, "fqdn"); err != nil {
 		return nil, fmt.Errorf("name must be a valid fqdn")
 	}
 
-	qtype, err := getQType(qTypeStr)
-	if err != nil {
-		return nil, err
-	}
-
-	start := time.Now()
-	r := &dnslib.Msg{
-		MsgHdr: dnslib.MsgHdr{
-			Opcode:           dnslib.OpcodeQuery,
-			RecursionDesired: true,
-		},
-		Question: []dnslib.Question{
-			{
-				Name:   fqdn + ".",
-				Qtype:  qtype,
-				Qclass: dnslib.ClassINET,
-			},
-		},
-	}
-
 	hostname := lookupHostname(net.ParseIP(ipStr))
-	m, cached, blocked, summary, _, upstream := process(r, hostname, true)
+	lists := findListsForDomain(fqdn, hostname)
+	slices.SortFunc(lists, func(a, b Rule) int {
+		return strings.Compare(string(*a.Action), string(*b.Action))
+	})
 
-	end := time.Now()
+	seenCats := map[types.Category]bool{}
+	groups := map[string]*config.GroupConfig{}
+	schedules := map[string]*config.ScheduleConfig{}
+	for _, list := range lists {
+		cat := *list.Category
+		if !seenCats[cat] {
+			gs, ss := config.All.Trace(hostname, cat)
+			maps.Copy(groups, gs)
+			maps.Copy(schedules, ss)
+			seenCats[cat] = true
+		}
+	}
+
 	return &Trace{
-		Response:       m.String(),
-		Cached:         cached,
-		Blocked:        blocked,
-		Upstream:       upstream,
-		Summary:        summary,
-		ResponseTimeMs: int(end.UnixMilli() - start.UnixMilli()),
+		Lists:     lists,
+		Groups:    groups,
+		Schedules: schedules,
 	}, nil
+}
+
+func findListsForDomain(domain, client string) []Rule {
+	treeMu.RLock()
+	defer treeMu.RUnlock()
+
+	key := reverseFQDN(domain)
+	lists := []Rule{}
+	for category := range root {
+		_, rules := isBlockedByCategory(key, domain, client, category)
+		lists = append(lists, rules...)
+	}
+
+	return lists
 }

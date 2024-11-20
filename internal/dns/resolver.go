@@ -45,32 +45,6 @@ type Rule struct {
 	Action   *types.Action   `json:"action"`
 }
 
-func summarizeRules(rules []Rule) string {
-	block, allow := []Rule{}, []Rule{}
-	for _, rule := range rules {
-		if *rule.Action == types.ActionBlock {
-			block = append(block, rule)
-		} else {
-			allow = append(allow, rule)
-		}
-	}
-
-	summary := ""
-	if len(allow) > 0 {
-		summary = fmt.Sprintf("Allowed by (%s): ", *allow[0].Category)
-		for _, rule := range allow {
-			summary += rule.List + ", "
-		}
-	} else {
-		summary = fmt.Sprintf("Blocked by (%s): ", *block[0].Category)
-		for _, rule := range block {
-			summary += rule.List + ", "
-		}
-	}
-
-	return strings.TrimSuffix(summary, ", ")
-}
-
 func LoadListToMemory(name string, action types.Action, categories []types.Category, domains []string) {
 	treeMu.Lock()
 	defer treeMu.Unlock()
@@ -103,7 +77,7 @@ func LoadListToMemory(name string, action types.Action, categories []types.Categ
 	}
 }
 
-func process(r *dnslib.Msg, client string, summarize bool) (*dnslib.Msg, bool, bool, string, *string, *string) {
+func process(r *dnslib.Msg, client string) (*dnslib.Msg, bool, bool, *string, *string) {
 	var m *dnslib.Msg
 	qn := r.Question[0]
 	fqdn := strings.TrimSuffix(qn.Name, ".")
@@ -120,15 +94,14 @@ func process(r *dnslib.Msg, client string, summarize bool) (*dnslib.Msg, bool, b
 			m.RecursionAvailable = true
 			m.SetRcode(r, dnslib.RcodeNameError) // NXDomain
 
-			summary := fmt.Sprintf("Reverse DNS lookup for private IP %s blocked", ipStr)
 			category := "rdns-private-ip"
-			return m, false, true, summary, &category, nil
+			return m, false, true, &category, nil
 		}
 	}
 
 	cached := false
 	var upstream *string
-	blocked, summary, category := isBlocked(fqdn, client, summarize)
+	blocked, category := isBlocked(fqdn, client)
 	if blocked {
 		m = blockFQDN(r)
 		blocked = true
@@ -142,65 +115,34 @@ func process(r *dnslib.Msg, client string, summarize bool) (*dnslib.Msg, bool, b
 			m.RecursionAvailable = true
 			m.SetRcode(r, dnslib.RcodeServerFailure)
 		}
-
-		sum := ""
-		if summarize {
-			if cached {
-				sum = "Served from local cache"
-			} else {
-				sum = "Resolved via " + *upstream
-			}
-
-			if !blocked && !strings.HasPrefix(summary, "Allow") {
-				summary = ""
-			}
-
-			if summary != "" {
-				summary += "; " + sum
-			} else {
-				summary = sum
-			}
-		}
 	}
 
-	return m, cached, blocked, summary, category, upstream
+	return m, cached, blocked, category, upstream
 }
 
-func isBlocked(domain, client string, summarize bool) (bool, string, *string) {
+func isBlocked(domain, client string) (bool, *string) {
 	treeMu.RLock()
 	defer treeMu.RUnlock()
 
-	var summary string
 	key := reverseFQDN(domain)
 	for category := range root {
-		blocked, rules, group, schedule := isBlockedByCategory(key, domain, client, category)
-		if summarize && len(rules) > 0 {
-			summary = summarizeRules(rules)
-
-			if group != "" {
-				summary += fmt.Sprintf("; Group: %s", group)
-			}
-
-			if schedule != "" {
-				summary += fmt.Sprintf("; Schedule: %s", schedule)
-			}
-		}
+		blocked, _ := isBlockedByCategory(key, domain, client, category)
 
 		if blocked {
 			cat := string(category)
-			return blocked, summary, &cat
+			return blocked, &cat
 		}
 	}
-	return false, summary, nil
+
+	return false, nil
 }
 
-func isBlockedByCategory(key, domain, client string, category types.Category) (bool, []Rule, string, string) {
+func isBlockedByCategory(key, domain, client string, category types.Category) (bool, []Rule) {
 	tree, ok := root[category]
 	if !ok {
-		return false, nil, "", ""
+		return false, nil
 	}
 
-	var group, schedule string
 	prefix, raw, found := tree.LongestPrefix(key)
 	if found {
 		// check that it is indeed a match
@@ -209,25 +151,25 @@ func isBlockedByCategory(key, domain, client string, category types.Category) (b
 		// so we need to check that serverfault.com has suffix server.com
 		base := reverseFQDN(string(prefix))
 		if !strings.HasSuffix(domain, base) {
-			return false, nil, "", ""
+			return false, nil
 		}
 
 		rules := raw.([]Rule)
 		for _, rule := range rules {
 			if *rule.Action == types.ActionAllow {
-				return false, rules, "", ""
+				return false, rules
 			}
 		}
 
 		blocked := len(rules) > 0
 		if blocked {
-			blocked, group, schedule = config.All.IsCategoryBlocked(client, category)
+			blocked = config.All.IsCategoryBlocked(client, category)
 		}
 
-		return blocked, rules, group, schedule
+		return blocked, rules
 	}
 
-	return false, nil, "", ""
+	return false, nil
 }
 
 // Reverse domain for better tree structure

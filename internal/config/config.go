@@ -51,16 +51,45 @@ func (c *Config) BlockedCategories() []types.Category {
 	return blocked
 }
 
-// TODO: Refactor this... for performance
-func (c *Config) IsCategoryBlocked(client string, category types.Category) (bool, string, string) {
-	// Check all groups
-	groups := map[string]bool{}
-	for groupName, group := range c.Groups {
+func (c *Config) Trace(client string, cat types.Category) (map[string]*GroupConfig, map[string]*ScheduleConfig) {
+	groupsWithCat := map[string]*GroupConfig{}
+	groupsWithClient := map[string]bool{}
+	for name, group := range c.Groups {
 		clientInGroup := len(group.Devices) == 0 || group.devices[client]
 		if clientInGroup {
-			groups[groupName] = true
+			groupsWithClient[name] = true
+
+			if group.block[cat] {
+				groupsWithCat[name] = group
+			}
+		}
+	}
+
+	schedules := map[string]*ScheduleConfig{}
+	for name, sched := range c.Schedules {
+		if !sched.block[cat] {
+			continue
+		}
+
+		for _, group := range sched.ApplyTo {
+			if _, ok := groupsWithClient[group]; ok {
+				schedules[name] = sched
+			}
+		}
+	}
+
+	return groupsWithCat, schedules
+}
+
+func (c *Config) IsCategoryBlocked(client string, category types.Category) bool {
+	// Check all groups
+	groups := map[string]bool{}
+	for name, group := range c.Groups {
+		clientInGroup := len(group.Devices) == 0 || group.devices[client]
+		if clientInGroup {
+			groups[name] = true
 			if group.block[category] {
-				return true, groupName, ""
+				return true
 			}
 		}
 	}
@@ -69,7 +98,7 @@ func (c *Config) IsCategoryBlocked(client string, category types.Category) (bool
 	now := time.Now().In(Location)
 	today := now.Weekday()
 	minutes := now.Hour()*60 + now.Minute()
-	for schedName, sched := range c.Schedules {
+	for _, sched := range c.Schedules {
 		if !sched.block[category] {
 			continue
 		}
@@ -94,26 +123,25 @@ func (c *Config) IsCategoryBlocked(client string, category types.Category) (bool
 				if period.start <= period.end {
 					// Normal case: within the same day
 					if minutes >= period.start && minutes < period.end {
-						return true, "", schedName
+						return true
 					}
 				} else {
 					// Spans midnight
 					if minutes >= period.start || minutes < period.end {
-						return true, "", schedName
+						return true
 					}
 				}
 			}
 		}
-
 	}
 
-	return false, "", ""
+	return false
 }
 
 type DNSConfig struct {
 	Port      uint16   `yaml:"port" json:"port"`
 	Upstreams []string `yaml:"upstreams" json:"upstreams"`
-	Timezone  string   `yaml:"timezone"`
+	Timezone  string   `yaml:"timezone" json:"timezone"`
 }
 
 type CacheConfig struct {
@@ -137,7 +165,7 @@ type ClientLookupConfig struct {
 }
 
 type GroupConfig struct {
-	Devices    []string         `yaml:"devices" json:"devices"`
+	Devices    []string         `yaml:"devices" json:"devices,omitempty"`
 	Block      []types.Category `yaml:"block" json:"block"`
 	SafeSearch bool             `yaml:"safe_search" json:"safe_search"`
 
