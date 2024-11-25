@@ -154,7 +154,7 @@ func GetDeviceStats() ([]DeviceStats, error) {
 	}
 	defer rows.Close()
 
-	stats := make([]DeviceStats, 0)
+	stats := []DeviceStats{}
 	var query_types, block_reasons, upstreams, resolved_domains string
 	var blocked_domains, response_codes, ips, first_seen, last_seen string
 	for rows.Next() {

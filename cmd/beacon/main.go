@@ -1,12 +1,12 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"os"
 	"time"
 
+	"github.com/go-co-op/gocron/v2"
 	"github.com/st3v3nmw/beacon/internal/api"
 	"github.com/st3v3nmw/beacon/internal/config"
 	"github.com/st3v3nmw/beacon/internal/dns"
@@ -30,13 +30,15 @@ func main() {
 		return
 	}
 
-	// Cache
-	slog.Info("Setting up cache...")
-	if err := dns.NewCache(); err != nil {
+	// Scheduler
+	scheduler, err := gocron.NewScheduler()
+	if err != nil {
 		slog.Error(err.Error())
 		return
 	}
-	defer dns.Cache.Close()
+
+	// Resolver
+	dns.NewResolver()
 
 	// Query log
 	slog.Info("Setting up query logger...")
@@ -56,6 +58,23 @@ func main() {
 
 	querylog.Collect()
 	defer querylog.QL.Shutdown()
+
+	// Cache
+	slog.Info("Setting up cache...")
+	if err := dns.NewCache(); err != nil {
+		slog.Error(err.Error())
+		return
+	}
+	defer dns.Cache.Close()
+
+	_, err = scheduler.NewJob(
+		gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(2, 0, 0))),
+		gocron.NewTask(dns.UpdateAccessPatterns),
+	)
+	if err != nil {
+		slog.Error(err.Error())
+		return
+	}
 
 	// UDP DNS service
 	slog.Info("Setting up UDP DNS service...")
@@ -83,7 +102,16 @@ func main() {
 	lists.Dir = fmt.Sprintf("%s/%s", dataDir, "lists")
 	os.MkdirAll(lists.Dir, 0755)
 
-	if err := lists.Sync(context.Background()); err != nil {
+	if err := lists.Sync(); err != nil {
+		slog.Error(err.Error())
+		return
+	}
+
+	_, err = scheduler.NewJob(
+		gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(3, 0, 0))),
+		gocron.NewTask(lists.Sync),
+	)
+	if err != nil {
 		slog.Error(err.Error())
 		return
 	}

@@ -1,7 +1,6 @@
 package lists
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -23,14 +22,14 @@ var (
 )
 
 type Source struct {
-	Name       string             `json:"name"`
-	URL        string             `json:"url"`
-	Action     types.Action       `json:"action"`
-	Categories []types.Category   `json:"category"`
-	LastSync   time.Time          `json:"last_sync"`
-	Domains    []string           `json:"domains"`
-	IPs        []string           `json:"ips"`
-	Format     types.SourceFormat `json:"-"`
+	Name     string             `json:"name"`
+	URL      string             `json:"url"`
+	Action   types.Action       `json:"action"`
+	Category types.Category     `json:"category"`
+	LastSync time.Time          `json:"last_sync"`
+	Domains  []string           `json:"domains"`
+	IPs      []string           `json:"ips"`
+	Format   types.SourceFormat `json:"-"`
 }
 
 func (s *Source) path() string {
@@ -105,29 +104,11 @@ func (s *Source) parseDomains(data []byte) []string {
 	return domains
 }
 
-func Sync(ctx context.Context) error {
-	if err := syncBlockListsWithUpstream(); err != nil {
-		return err
-	}
-
-	interval := config.All.Sources.UpdateInterval
-	ticker := time.NewTicker(interval)
-	go func() {
-		for range ticker.C {
-			if err := syncBlockListsWithUpstream(); err != nil {
-				slog.Error(err.Error())
-			}
-		}
-	}()
-
-	return nil
-}
-
-func syncBlockListsWithUpstream() error {
+func Sync() error {
 	var err error
 	blocked := config.All.BlockedCategories()
 	for _, listConf := range config.All.Sources.Lists {
-		if !anyCategoryBlocked(listConf.Categories, blocked) {
+		if !slices.Contains(blocked, listConf.Category) {
 			continue
 		}
 
@@ -137,13 +118,13 @@ func syncBlockListsWithUpstream() error {
 		}
 
 		list := Source{
-			Name:       listConf.Name,
-			URL:        listConf.URL,
-			Action:     listConf.Action,
-			Categories: listConf.Categories,
-			Domains:    []string{},
-			IPs:        []string{},
-			Format:     listConf.Format,
+			Name:     listConf.Name,
+			URL:      listConf.URL,
+			Action:   listConf.Action,
+			Category: listConf.Category,
+			Domains:  []string{},
+			IPs:      []string{},
+			Format:   listConf.Format,
 		}
 		slog.Info(" Syncing", "list", list.Name)
 
@@ -175,18 +156,9 @@ func syncBlockListsWithUpstream() error {
 			}
 		}
 
-		dns.LoadListToMemory(list.Name, list.Action, list.Categories, list.Domains)
+		dns.LoadListToMemory(list.Name, &list.Action, &list.Category, list.Domains)
 	}
 
 	slog.Info(" Lists loaded into memory.")
 	return err
-}
-
-func anyCategoryBlocked(categories, blocked []types.Category) bool {
-	for _, cat := range categories {
-		if slices.Contains(blocked, cat) {
-			return true
-		}
-	}
-	return false
 }

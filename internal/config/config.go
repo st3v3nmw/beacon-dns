@@ -133,13 +133,8 @@ type DNSConfig struct {
 }
 
 type CacheConfig struct {
-	Size int            `yaml:"size" json:"size"`
-	TTL  CacheTTLConfig `yaml:"ttl" json:"ttl"`
-}
-
-type CacheTTLConfig struct {
-	Min time.Duration `yaml:"min" json:"min"`
-	Max time.Duration `yaml:"max" json:"max"`
+	Capacity      int           `yaml:"capacity" json:"capacity"`
+	ServeStaleFor time.Duration `yaml:"serve_stale_for" json:"serve_stale_for"`
 }
 
 type APIConfig struct {
@@ -303,10 +298,10 @@ func (p *SchedulePeriod) UnmarshalYAML(data []byte) error {
 }
 
 type QueryLogConfig struct {
-	Enabled        bool   `yaml:"enabled" json:"enabled"`
-	LogClients     bool   `yaml:"log_clients" json:"log_clients"`
-	QueryRetention string `yaml:"query_retention" json:"query_retention"`
-	StatsRetention string `yaml:"stats_retention" json:"stats_retention"`
+	Enabled        bool          `yaml:"enabled" json:"enabled"`
+	LogClients     bool          `yaml:"log_clients" json:"log_clients"`
+	QueryRetention time.Duration `yaml:"query_retention" json:"query_retention"`
+	StatsRetention time.Duration `yaml:"stats_retention" json:"stats_retention"`
 }
 
 type DHCPConfig struct {
@@ -319,11 +314,11 @@ type SourcesConfig struct {
 }
 
 type SourceListConfig struct {
-	Name       string             `yaml:"name" json:"name"`
-	URL        string             `yaml:"url" json:"url"`
-	Categories []types.Category   `yaml:"categories" json:"categories"`
-	Action     types.Action       `yaml:"action" json:"action"`
-	Format     types.SourceFormat `yaml:"format" json:"format"`
+	Name     string             `yaml:"name" json:"name"`
+	URL      string             `yaml:"url" json:"url"`
+	Category types.Category     `yaml:"category" json:"category"`
+	Action   types.Action       `yaml:"action" json:"action"`
+	Format   types.SourceFormat `yaml:"format" json:"format"`
 }
 
 func Read(filePath string) error {
@@ -340,11 +335,8 @@ func Read(filePath string) error {
 	}
 
 	All.Cache = &CacheConfig{
-		Size: 100_000,
-		TTL: CacheTTLConfig{
-			Min: 15 * time.Second,
-			Max: 24 * time.Hour,
-		},
+		Capacity:      10_000,
+		ServeStaleFor: 5 * time.Minute,
 	}
 
 	All.API = &APIConfig{Port: 80}
@@ -357,8 +349,8 @@ func Read(filePath string) error {
 	All.QueryLog = &QueryLogConfig{
 		Enabled:        true,
 		LogClients:     true,
-		QueryRetention: "90d",
-		StatsRetention: "365d",
+		QueryRetention: 90 * 24 * time.Hour,
+		StatsRetention: 365 * 24 * time.Hour,
 	}
 
 	minUpdateInterval := 24 * time.Hour

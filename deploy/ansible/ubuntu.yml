@@ -50,10 +50,8 @@
             timezone: Africa/Nairobi
 
           cache:
-            size: 100000
-            ttl:
-              min: 15s
-              max: 24h
+            capacity: 10000
+            serve_stale_for: 300s
 
           api:
             port: 80
@@ -69,14 +67,20 @@
                 - malware
                 - adult
 
+            screens:
+              devices:
+                - phone
+                - terra
+                - tv
+
           schedules:
             focus:
               apply_to:
-                - all
+                - screens
               when:
                 - days: ["mon", "tue", "wed", "thur", "fri"]
                   periods:
-                    - start: "08:00"
+                    - start: "09:00"
                       end: "18:00"
               block:
                 - social-media
@@ -86,7 +90,7 @@
 
             bedtime:
               apply_to:
-                - all
+                - screens
               when:
                 - days: ["sun", "mon", "tue", "wed", "thur", "fri", "sat"]
                   periods:
@@ -101,8 +105,8 @@
           querylog:
             enabled: true
             log_clients: true
-            query_retention: 90d
-            stats_retention: 365d
+            query_retention: 2160h
+            stats_retention: 8760h
 
           sources:
             update_interval: 24h

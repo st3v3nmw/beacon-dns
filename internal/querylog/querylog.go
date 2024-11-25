@@ -7,6 +7,7 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/st3v3nmw/beacon/internal/types"
 )
 
 var (
@@ -29,6 +30,12 @@ CREATE TABLE IF NOT EXISTS queries (
 	response_code VARCHAR(255) NOT NULL,
     response_time_ms INTEGER NOT NULL,
 	timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS access_patterns (
+	domain VARCHAR(255) NOT NULL,
+	occurrences INTEGER NOT NULL,
+	prefetch TEXT NOT NULL
 );
 `
 
@@ -60,27 +67,27 @@ type QueryLog struct {
 }
 
 type QueryLogger struct {
-	queryChan chan QueryLog
-	pending   []QueryLog
+	queryChan chan *QueryLog
+	queue     types.ThreadSafeSlice[*QueryLog]
 	wg        sync.WaitGroup
 	shutdown  chan struct{}
 }
 
 func Collect() {
 	QL = &QueryLogger{
-		queryChan: make(chan QueryLog, 1_000),
+		queryChan: make(chan *QueryLog, 1_000),
 		shutdown:  make(chan struct{}),
 	}
 
 	Broadcaster = &QueryBroadcaster{
-		clients: make(map[chan QueryLog]bool),
+		clients: make(map[chan *QueryLog]bool),
 	}
 
 	QL.wg.Add(1)
 	go QL.worker()
 }
 
-func (ql *QueryLogger) Log(q QueryLog) {
+func (ql *QueryLogger) Log(q *QueryLog) {
 	select {
 	case ql.queryChan <- q:
 	default:
@@ -97,16 +104,16 @@ func (ql *QueryLogger) worker() {
 	for {
 		select {
 		case query := <-ql.queryChan:
-			QL.pending = append(QL.pending, query)
+			ql.queue.Append(query)
 
 			Broadcaster.broadcast(query)
 		case <-ticker.C:
-			if len(QL.pending) > 0 {
+			if ql.queue.Len() > 0 {
 				ql.flush()
 			}
 
 		case <-ql.shutdown:
-			if len(QL.pending) > 0 {
+			if ql.queue.Len() > 0 {
 				ql.flush()
 			}
 			return
@@ -137,7 +144,7 @@ func (ql *QueryLogger) flush() {
 	}
 	defer stmt.Close()
 
-	for _, q := range QL.pending {
+	for q := range ql.queue.Iterator() {
 		_, err := stmt.Exec(
 			q.Hostname, q.IP, q.Domain, q.QueryType,
 			q.Cached, q.Blocked, q.BlockReason, q.Upstream,
@@ -156,7 +163,7 @@ func (ql *QueryLogger) flush() {
 		return
 	}
 
-	QL.pending = QL.pending[:0]
+	ql.queue.Clear()
 }
 
 func (ql *QueryLogger) Shutdown() {

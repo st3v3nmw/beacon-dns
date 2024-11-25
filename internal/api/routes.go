@@ -34,6 +34,7 @@ func New(addr string) {
 
 	// Statistics
 	e.GET("/api/stats/devices", getDeviceStats)
+	e.GET("/api/stats/cache", getCacheStats)
 
 	// Trace
 	e.GET("/api/trace", trace)

@@ -21,7 +21,7 @@ func HandleTrace(fqdn, ipStr string) (*Trace, error) {
 		return nil, fmt.Errorf("name must be a valid fqdn")
 	}
 
-	lists := findListsForDomain(fqdn)
+	_, _, lists := isBlocked(fqdn, "")
 
 	seenCats := map[types.Category]bool{}
 	groups := map[string]*config.GroupConfig{}
@@ -41,18 +41,4 @@ func HandleTrace(fqdn, ipStr string) (*Trace, error) {
 		Groups:    groups,
 		Schedules: schedules,
 	}, nil
-}
-
-func findListsForDomain(domain string) []Rule {
-	treeMu.RLock()
-	defer treeMu.RUnlock()
-
-	key := reverseFQDN(domain)
-	lists := []Rule{}
-	for category := range root {
-		_, rules := isBlockedByCategory(key, domain, category)
-		lists = append(lists, rules...)
-	}
-
-	return lists
 }

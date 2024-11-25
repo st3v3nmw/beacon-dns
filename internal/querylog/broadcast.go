@@ -9,36 +9,30 @@ var (
 )
 
 type QueryBroadcaster struct {
-	clients map[chan QueryLog]bool
-	lock    sync.RWMutex
+	sync.RWMutex
+	clients map[chan *QueryLog]bool
 }
 
-func NewQueryBroadcaster() *QueryBroadcaster {
-	return &QueryBroadcaster{
-		clients: make(map[chan QueryLog]bool),
-	}
-}
+func (b *QueryBroadcaster) Subscribe() chan *QueryLog {
+	b.Lock()
+	defer b.Unlock()
 
-func (b *QueryBroadcaster) Subscribe() chan QueryLog {
-	b.lock.Lock()
-	defer b.lock.Unlock()
-
-	ch := make(chan QueryLog, 10)
+	ch := make(chan *QueryLog, 10)
 	b.clients[ch] = true
 	return ch
 }
 
-func (b *QueryBroadcaster) Unsubscribe(ch chan QueryLog) {
-	b.lock.Lock()
-	defer b.lock.Unlock()
+func (b *QueryBroadcaster) Unsubscribe(ch chan *QueryLog) {
+	b.Lock()
+	defer b.Unlock()
 
 	delete(b.clients, ch)
 	close(ch)
 }
 
-func (b *QueryBroadcaster) broadcast(query QueryLog) {
-	b.lock.RLock()
-	defer b.lock.RUnlock()
+func (b *QueryBroadcaster) broadcast(query *QueryLog) {
+	b.RLock()
+	defer b.RUnlock()
 
 	for ch := range b.clients {
 		select {

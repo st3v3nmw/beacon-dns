@@ -32,9 +32,9 @@ func handleRequest(w dnslib.ResponseWriter, r *dnslib.Msg) {
 	addr := w.RemoteAddr().(*net.UDPAddr)
 	ip := addr.IP.String()
 	hostname := lookupHostname(addr.IP)
-	m, cached, blocked, category, upstream := process(r, hostname)
+	response := Resolver.Await(r, hostname)
 
-	w.WriteMsg(m)
+	w.WriteMsg(response.Msg)
 
 	if config.All.QueryLog.Enabled {
 		if !config.All.QueryLog.LogClients {
@@ -50,18 +50,18 @@ func handleRequest(w dnslib.ResponseWriter, r *dnslib.Msg) {
 
 		end := time.Now()
 		querylog.QL.Log(
-			querylog.QueryLog{
+			&querylog.QueryLog{
 				Hostname:       hostname,
 				IP:             ip,
 				Domain:         strings.TrimSuffix(qn.Name, "."),
 				QueryType:      queryType,
-				Cached:         cached,
-				Blocked:        blocked,
-				BlockReason:    category,
-				Upstream:       upstream,
-				ResponseCode:   dnslib.RcodeToString[m.Rcode],
+				Cached:         response.Cached,
+				Blocked:        response.Blocked,
+				BlockReason:    response.BlockReason,
+				Upstream:       response.Upstream,
+				ResponseCode:   dnslib.RcodeToString[response.Msg.Rcode],
 				ResponseTimeMs: int(end.UnixMilli() - start.UnixMilli()),
-				Timestamp:      end.UTC(),
+				Timestamp:      start.UTC(),
 			},
 		)
 	}
