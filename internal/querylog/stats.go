@@ -17,7 +17,12 @@ SELECT
 
     -- Cache stats
     SUM(CASE WHEN cached THEN 1 ELSE 0 END) as cached_queries,
-    ROUND(SUM(CASE WHEN cached THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) as cache_hit_ratio,
+    CASE
+        WHEN (COUNT(*) - SUM(CASE WHEN blocked THEN 1 ELSE 0 END)) > 0
+        THEN ROUND(SUM(CASE WHEN cached THEN 1 ELSE 0 END) * 100.0 /
+            (COUNT(*) - SUM(CASE WHEN blocked THEN 1 ELSE 0 END)), 2)
+        ELSE 0
+    END as cache_hit_ratio,
 
     -- Blocking stats
     SUM(CASE WHEN blocked THEN 1 ELSE 0 END) as blocked_queries,
