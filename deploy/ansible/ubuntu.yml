@@ -103,7 +103,6 @@
                 - dating
 
           querylog:
-            enabled: true
             log_clients: true
             query_retention: 2160h
             stats_retention: 8760h
@@ -126,8 +125,8 @@
           WorkingDirectory=/var/lib/beacon
           User=root
           PIDFile=/run/beacon.pid
-          StandardOutput=append:/var/lib/beacon/beacon.log
-          StandardError=append:/var/lib/beacon/beacon.log
+          StandardOutput=file:/var/lib/beacon/beacon.log
+          StandardError=file:/var/lib/beacon/beacon.log
           Restart=on-failure
 
           [Install]

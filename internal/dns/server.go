@@ -23,56 +23,56 @@ func NewUDPServer(addr string) {
 	UDP.Handler = dnslib.HandlerFunc(handleRequest)
 }
 
-func handleRequest(w dnslib.ResponseWriter, r *dnslib.Msg) {
+func handleRequest(w dnslib.ResponseWriter, q *dnslib.Msg) {
 	start := time.Now()
-	if len(r.Question) == 0 {
+	if len(q.Question) == 0 {
 		return
 	}
 
-	addr := w.RemoteAddr().(*net.UDPAddr)
-	ip := addr.IP.String()
-	hostname := lookupHostname(addr.IP)
-	response := Resolver.Await(r, hostname)
+	var ip, hostname string
+	if config.All.QueryLog.LogClients {
+		addr := w.RemoteAddr().(*net.UDPAddr)
+		ip = addr.IP.String()
+		hostname = lookupHostname(addr.IP)
+	} else {
+		ip = "-"
+		hostname = "-"
+	}
 
+	response := process(q, hostname, true)
 	w.WriteMsg(response.Msg)
 
-	if config.All.QueryLog.Enabled {
-		if !config.All.QueryLog.LogClients {
-			ip = "-"
-			hostname = "-"
-		}
-
-		qn := r.Question[0]
-		queryType, ok := dnslib.TypeToString[qn.Qtype]
-		if !ok {
-			queryType = "UNKNOWN"
-		}
-
-		end := time.Now()
-		querylog.QL.Log(
-			&querylog.QueryLog{
-				Hostname:       hostname,
-				IP:             ip,
-				Domain:         strings.TrimSuffix(qn.Name, "."),
-				QueryType:      queryType,
-				Cached:         response.Cached,
-				Blocked:        response.Blocked,
-				BlockReason:    response.BlockReason,
-				Upstream:       response.Upstream,
-				ResponseCode:   dnslib.RcodeToString[response.Msg.Rcode],
-				ResponseTimeMs: int(end.UnixMilli() - start.UnixMilli()),
-				Timestamp:      start.UTC(),
-			},
-		)
+	qn := q.Question[0]
+	queryType, ok := dnslib.TypeToString[qn.Qtype]
+	if !ok {
+		queryType = "UNKNOWN"
 	}
+
+	end := time.Now()
+	querylog.QL.Log(
+		&querylog.QueryLog{
+			Hostname:       hostname,
+			IP:             ip,
+			Domain:         strings.TrimSuffix(qn.Name, "."),
+			QueryType:      queryType,
+			Cached:         response.Cached,
+			Blocked:        response.Blocked,
+			BlockReason:    response.BlockReason,
+			Upstream:       response.Upstream,
+			ResponseCode:   dnslib.RcodeToString[response.Msg.Rcode],
+			ResponseTimeMs: int(end.UnixMilli() - start.UnixMilli()),
+			Prefetched:     response.Prefetched,
+			Timestamp:      start.UTC(),
+		},
+	)
 }
 
-func blockFQDN(r *dnslib.Msg) *dnslib.Msg {
+func blockFQDN(q *dnslib.Msg) *dnslib.Msg {
 	m := new(dnslib.Msg)
-	m.SetReply(r)
+	m.SetReply(q)
 	m.RecursionAvailable = true
 
-	qn := r.Question[0]
+	qn := q.Question[0]
 	switch qn.Qtype {
 	case dnslib.TypeA:
 		a := &dnslib.A{
@@ -85,7 +85,7 @@ func blockFQDN(r *dnslib.Msg) *dnslib.Msg {
 			A: net.ParseIP("0.0.0.0"),
 		}
 		m.Answer = append(m.Answer, a)
-		m.SetRcode(r, dnslib.RcodeSuccess)
+		m.SetRcode(q, dnslib.RcodeSuccess)
 	case dnslib.TypeAAAA:
 		aaaa := &dnslib.AAAA{
 			Hdr: dnslib.RR_Header{
@@ -97,9 +97,9 @@ func blockFQDN(r *dnslib.Msg) *dnslib.Msg {
 			AAAA: net.ParseIP("::"),
 		}
 		m.Answer = append(m.Answer, aaaa)
-		m.SetRcode(r, dnslib.RcodeSuccess)
+		m.SetRcode(q, dnslib.RcodeSuccess)
 	default:
-		m.SetRcode(r, dnslib.RcodeRefused)
+		m.SetRcode(q, dnslib.RcodeRefused)
 	}
 
 	return m

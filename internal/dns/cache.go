@@ -3,8 +3,10 @@ package dns
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"math"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/maypok86/otter"
@@ -14,8 +16,10 @@ import (
 )
 
 var (
-	Cache           otter.CacheWithVariableTTL[string, *Cached]
-	serve_stale_for uint32
+	Cache             otter.CacheWithVariableTTL[string, *Cached]
+	serveStaleFor     uint32
+	Prefetch          = map[string]map[string][]string{}
+	ongoingPrefetches sync.Map
 )
 
 func NewCache() (err error) {
@@ -27,15 +31,18 @@ func NewCache() (err error) {
 		return err
 	}
 
-	serve_stale_for = uint32(config.All.Cache.ServeStaleFor.Seconds())
+	serveStaleFor = uint32(config.All.Cache.ServeStaleFor.Seconds())
+
+	loadAccessPatterns()
 
 	return nil
 }
 
 type Cached struct {
-	Msg     *dnslib.Msg
-	Touched time.Time
-	Stale   bool
+	Msg        *dnslib.Msg
+	Touched    time.Time
+	Stale      bool
+	Prefetched bool
 }
 
 func (c *Cached) reduceTtl(rrs []dnslib.RR, elapsed time.Duration) {
@@ -48,9 +55,9 @@ func (c *Cached) reduceTtl(rrs []dnslib.RR, elapsed time.Duration) {
 		elapsed := uint32(elapsed.Seconds())
 		if header.Ttl > elapsed {
 			header.Ttl -= elapsed
-		} else if !c.Stale {
+		} else {
 			c.Stale = true
-			header.Ttl = 10
+			header.Ttl = 15
 		}
 	}
 }
@@ -213,6 +220,8 @@ func findAccessPatterns(bins map[string]map[string]*domainStats) ([]AccessPatter
 }
 
 func UpdateAccessPatterns() error {
+	slog.Info("Updating access patterns...")
+
 	queries, err := fetchQueries()
 	if err != nil {
 		return fmt.Errorf("error fetching queries: %w", err)
@@ -262,5 +271,42 @@ func UpdateAccessPatterns() error {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
+	if err := loadAccessPatterns(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func loadAccessPatterns() error {
+	newPrefetch := map[string]map[string][]string{}
+
+	rows, err := querylog.DB.Query("SELECT domain, prefetch FROM access_patterns")
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var domain, prefetchJSON string
+		err := rows.Scan(&domain, &prefetchJSON)
+		if err != nil {
+			return err
+		}
+
+		var prefetchMap map[string][]string
+		err = json.Unmarshal([]byte(prefetchJSON), &prefetchMap)
+		if err != nil {
+			return err
+		}
+
+		newPrefetch[domain] = prefetchMap
+	}
+
+	if err = rows.Err(); err != nil {
+		return err
+	}
+
+	Prefetch = newPrefetch
 	return nil
 }

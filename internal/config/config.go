@@ -144,12 +144,12 @@ type APIConfig struct {
 type ClientLookupConfig struct {
 	Upstream string                   `yaml:"upstream" json:"upstream"`
 	Method   types.ClientLookupMethod `yaml:"method" json:"method"`
-	Clients  map[string]net.IP        `yaml:"clients" json:"clients"`
+	Clients  map[string]net.IP        `yaml:"clients" json:"clients,omitempty"`
 }
 
 type GroupConfig struct {
 	Devices    []string         `yaml:"devices" json:"devices,omitempty"`
-	Block      []types.Category `yaml:"block" json:"block"`
+	Block      []types.Category `yaml:"block" json:"block,omitempty"`
 	SafeSearch bool             `yaml:"safe_search" json:"safe_search"`
 
 	// for quick lookups
@@ -197,7 +197,7 @@ func (s *ScheduleConfig) precompute() {
 
 type ScheduleWhen struct {
 	Days    []time.Weekday    `yaml:"days" json:"days"`
-	Periods []*SchedulePeriod `yaml:"periods" json:"periods"`
+	Periods []*SchedulePeriod `yaml:"periods" json:"periods,omitempty"`
 }
 
 func (w *ScheduleWhen) precompute() {
@@ -298,7 +298,6 @@ func (p *SchedulePeriod) UnmarshalYAML(data []byte) error {
 }
 
 type QueryLogConfig struct {
-	Enabled        bool          `yaml:"enabled" json:"enabled"`
 	LogClients     bool          `yaml:"log_clients" json:"log_clients"`
 	QueryRetention time.Duration `yaml:"query_retention" json:"query_retention"`
 	StatsRetention time.Duration `yaml:"stats_retention" json:"stats_retention"`
@@ -347,7 +346,6 @@ func Read(filePath string) error {
 	All.Groups = map[string]*GroupConfig{"all": allDevicesGroup}
 
 	All.QueryLog = &QueryLogConfig{
-		Enabled:        true,
 		LogClients:     true,
 		QueryRetention: 90 * 24 * time.Hour,
 		StatsRetention: 365 * 24 * time.Hour,

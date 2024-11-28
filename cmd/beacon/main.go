@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"time"
 
 	"github.com/go-co-op/gocron/v2"
 	"github.com/st3v3nmw/beacon/internal/api"
@@ -37,9 +36,6 @@ func main() {
 		return
 	}
 
-	// Resolver
-	dns.NewResolver()
-
 	// Query log
 	slog.Info("Setting up query logger...")
 	dataDir, err := mustGetEnv("DATA_DIR")
@@ -68,53 +64,45 @@ func main() {
 	defer dns.Cache.Close()
 
 	_, err = scheduler.NewJob(
-		gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(2, 0, 0))),
+		gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(3, 0, 0))),
 		gocron.NewTask(dns.UpdateAccessPatterns),
+		gocron.WithStartAt(gocron.WithStartImmediately()),
 	)
 	if err != nil {
 		slog.Error(err.Error())
 		return
 	}
 
-	// UDP DNS service
-	slog.Info("Setting up UDP DNS service...")
+	// DNS service
 	dnsAddr := fmt.Sprintf(":%d", config.All.DNS.Port)
-
-	dnsStarted := make(chan bool, 1)
 	dns.NewUDPServer(dnsAddr)
 
 	go func() {
-		dnsStarted <- true
+		slog.Info("Starting DNS service...")
 		if err := dns.UDP.ListenAndServe(); err != nil {
 			slog.Error("dns service error", "error", err)
 		}
 	}()
 
-	// not fool proof but we need to wait until the DNS server is running
-	// to address cases where the DNS server is the resolver on the deployment host
-	// and we won't be able to fetch lists when it's not running
-	// TODO: Need a better solution!
-	<-dnsStarted
-	time.Sleep(250 * time.Millisecond)
-
 	// Lists
-	slog.Info("Syncing blocklists with upstream sources...")
+	slog.Info("Setting up lists sync job...")
 	lists.Dir = fmt.Sprintf("%s/%s", dataDir, "lists")
 	os.MkdirAll(lists.Dir, 0755)
 
-	if err := lists.Sync(); err != nil {
-		slog.Error(err.Error())
-		return
-	}
-
+	sourcesUpdateDays := int(config.All.Sources.UpdateInterval.Seconds()) / 86400
+	cronStr := fmt.Sprintf("0 2 */%d * *", sourcesUpdateDays)
 	_, err = scheduler.NewJob(
-		gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(3, 0, 0))),
+		gocron.CronJob(cronStr, false),
 		gocron.NewTask(lists.Sync),
+		gocron.WithStartAt(gocron.WithStartImmediately()),
 	)
 	if err != nil {
 		slog.Error(err.Error())
 		return
 	}
+
+	// Start scheduler
+	scheduler.Start()
 
 	// API
 	slog.Info("Starting API service...")

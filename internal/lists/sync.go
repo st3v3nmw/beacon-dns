@@ -105,6 +105,8 @@ func (s *Source) parseDomains(data []byte) []string {
 }
 
 func Sync() error {
+	slog.Info("Syncing blocklists with upstream sources...")
+
 	var err error
 	blocked := config.All.BlockedCategories()
 	for _, listConf := range config.All.Sources.Lists {
@@ -126,14 +128,14 @@ func Sync() error {
 			IPs:      []string{},
 			Format:   listConf.Format,
 		}
-		slog.Info(" Syncing", "list", list.Name)
+		slog.Info("Syncing", "list", list.Name)
 
 		now := time.Now().UTC()
 		fetchFromUpstream := true
 		if list.existsOnFs() {
 			err = list.readFromFs()
 			if err != nil {
-				slog.Error(" \tGot error while syncing", "list", list.Name, "error", err)
+				slog.Error("Got error while syncing", "list", list.Name, "error", err)
 				continue
 			}
 
@@ -141,17 +143,17 @@ func Sync() error {
 		}
 
 		if fetchFromUpstream {
-			slog.Info(" \tFetching from upstream...")
+			slog.Info("Fetching from upstream...")
 			err = list.fetchFromUpstream()
 			if err != nil {
-				slog.Error(" \tGot error while syncing", "list", list.Name, "error", err)
+				slog.Error("Got error while syncing", "list", list.Name, "error", err)
 				continue
 			}
 
-			slog.Info(" \tUpdating local copy...")
+			slog.Info("Updating local copy...")
 			err = list.saveToFs()
 			if err != nil {
-				slog.Error(" \tError while saving locally", "list", list.Name, "error", err)
+				slog.Error("Error while saving locally", "list", list.Name, "error", err)
 				continue
 			}
 		}
@@ -159,6 +161,6 @@ func Sync() error {
 		dns.LoadListToMemory(list.Name, &list.Action, &list.Category, list.Domains)
 	}
 
-	slog.Info(" Lists loaded into memory.")
+	slog.Info("Lists loaded into memory.")
 	return err
 }

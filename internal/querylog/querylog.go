@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS queries (
 	upstream VARCHAR(50) NULL,
 	response_code VARCHAR(255) NOT NULL,
     response_time_ms INTEGER NOT NULL,
+	prefetched BOOLEAN NOT NULL,
 	timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -63,6 +64,7 @@ type QueryLog struct {
 	Upstream       *string   `json:"upstream"`
 	ResponseCode   string    `json:"response_code"`
 	ResponseTimeMs int       `json:"response_time_ms"`
+	Prefetched     bool      `json:"prefetched"`
 	Timestamp      time.Time `json:"timestamp"`
 }
 
@@ -132,9 +134,9 @@ func (ql *QueryLogger) flush() {
 		INSERT INTO queries (
 			hostname, ip, domain, query_type,
 			cached, blocked, block_reason, upstream,
-			response_code, response_time_ms, timestamp
+			response_code, response_time_ms, prefetched, timestamp
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
 		)
 	`)
 	if err != nil {
@@ -148,7 +150,7 @@ func (ql *QueryLogger) flush() {
 		_, err := stmt.Exec(
 			q.Hostname, q.IP, q.Domain, q.QueryType,
 			q.Cached, q.Blocked, q.BlockReason, q.Upstream,
-			q.ResponseCode, q.ResponseTimeMs, q.Timestamp,
+			q.ResponseCode, q.ResponseTimeMs, q.Prefetched, q.Timestamp,
 		)
 		if err != nil {
 			slog.Error("Failed to insert query", "error", err)

@@ -28,6 +28,8 @@ func lookupHostname(ip net.IP) string {
 		hostname = h
 	} else if ip.IsLoopback() {
 		hostname = lookupLocalHostname(ipStr)
+	} else if ip.IsPrivate() {
+		hostname = ipStr
 	} else {
 		method := config.All.ClientLookup.Method
 		switch method {

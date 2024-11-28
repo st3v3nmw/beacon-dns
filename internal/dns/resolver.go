@@ -17,96 +17,22 @@ import (
 )
 
 var (
-	Resolver *DNSResolver
-	tree     *radix.Tree
-	treeMu   sync.RWMutex
+	tree   = radix.New()
+	treeMu sync.RWMutex
 )
-
-type Request struct {
-	Msg        *dnslib.Msg
-	Client     string
-	IsPrefetch bool
-	Result     chan *Response
-}
 
 type Response struct {
 	Msg         *dnslib.Msg
 	Cached      bool
 	Blocked     bool
 	BlockReason *string
+	Prefetched  bool
 	Upstream    *string
 }
 
-type DNSResolver struct {
-	reqChan  chan *Request
-	wg       sync.WaitGroup
-	shutdown chan struct{}
-}
-
-func NewResolver() {
-	tree = radix.New()
-
-	Resolver = &DNSResolver{
-		reqChan:  make(chan *Request, 1_000),
-		shutdown: make(chan struct{}),
-	}
-
-	Resolver.wg.Add(2)
-	for i := 0; i < 2; i++ {
-		go Resolver.worker()
-	}
-}
-
-func (r *DNSResolver) Await(msg *dnslib.Msg, client string) *Response {
-	req := &Request{
-		Msg:    msg,
-		Client: client,
-		Result: make(chan *Response, 1),
-	}
-
-	select {
-	case r.reqChan <- req:
-		return <-req.Result
-	case <-time.After(5 * time.Second):
-		slog.Error("request timed out")
-		return &Response{
-			Msg:     createErrorResponse(msg, dnslib.RcodeServerFailure),
-			Blocked: true,
-		}
-	}
-}
-
-func (r *DNSResolver) Prefetch(msg *dnslib.Msg, client string) {
-	req := &Request{
-		Msg:        msg,
-		Client:     client,
-		IsPrefetch: true,
-		Result:     make(chan *Response, 1),
-	}
-
-	select {
-	case r.reqChan <- req:
-	default:
-		// Drop prefetch request if queue is full
-	}
-}
-
-func (r *DNSResolver) worker() {
-	defer r.wg.Done()
-
-	for {
-		select {
-		case req := <-r.reqChan:
-			req.Result <- r.process(req.Msg, req.Client, req.IsPrefetch)
-		case <-r.shutdown:
-			return
-		}
-	}
-}
-
-func (rasd *DNSResolver) process(q *dnslib.Msg, client string, isPrefetch bool) *Response {
+func process(q *dnslib.Msg, client string, prefetch bool) *Response {
 	qn := q.Question[0]
-	fqdn := strings.TrimSuffix(qn.Name, ".")
+	fqdn := strings.ToLower(strings.TrimSuffix(qn.Name, "."))
 
 	if qn.Qtype == dnslib.TypePTR {
 		if resp := handleReverseDNS(q, fqdn); resp != nil {
@@ -123,18 +49,20 @@ func (rasd *DNSResolver) process(q *dnslib.Msg, client string, isPrefetch bool) 
 		}
 	}
 
-	m, cached, upstream, err := resolve(q, client, isPrefetch)
+	m, cached, upstream, prefetched, err := resolve(q, fqdn, client, prefetch)
 	if err != nil {
 		slog.Error("an error occurred:", "error", err)
 		return &Response{
-			Msg: createErrorResponse(q, dnslib.RcodeServerFailure),
+			Msg:      createErrorResponse(q, dnslib.RcodeServerFailure),
+			Upstream: upstream,
 		}
 	}
 
 	return &Response{
-		Msg:      m,
-		Cached:   cached,
-		Upstream: upstream,
+		Msg:        m,
+		Cached:     cached,
+		Upstream:   upstream,
+		Prefetched: prefetched,
 	}
 }
 
@@ -214,11 +142,15 @@ func isBlocked(domain, client string) (bool, *string, []Rule) {
 			if *rule.Action == types.ActionAllow {
 				return false, nil, rules
 			}
+		}
 
-			blocked := config.All.IsClientBlocked(client, *rule.Category)
-			if blocked {
-				cat := string(*rule.Category)
-				return true, &cat, rules
+		for _, rule := range rules {
+			if *rule.Action != types.ActionAllow {
+				blocked := config.All.IsClientBlocked(client, *rule.Category)
+				if blocked {
+					cat := string(*rule.Category)
+					return true, &cat, rules
+				}
 			}
 		}
 
@@ -236,40 +168,51 @@ func reverseFQDN(fqdn string) string {
 	return strings.Join(parts, ".")
 }
 
-func resolve(r *dnslib.Msg, client string, isPrefetch bool) (*dnslib.Msg, bool, *string, error) {
-	qn := r.Question[0]
+func resolve(q *dnslib.Msg, fqdn, client string, prefetch bool) (*dnslib.Msg, bool, *string, bool, error) {
+	qn := q.Question[0]
 	key := fmt.Sprintf("%s-%d-%d", qn.Name, qn.Qtype, qn.Qclass)
 
 	cached, ok := Cache.Get(key)
-	if ok && !(isPrefetch && cached.Stale) {
+	if ok && (prefetch || !cached.Stale) {
 		if cached.touch() {
-			Resolver.Prefetch(r, client)
+			go process(q, client, false)
+		}
+
+		if prefetch {
+			go prefetchRelated(fqdn, client)
 		}
 
 		m := cached.Msg.Copy()
-		m.Id = r.Id
-		return m, true, nil, nil
+		m.Id = q.Id
+		return m, true, nil, cached.Prefetched, nil
 	}
 
-	m, upstream, err := forwardToUpstream(r)
+	m, upstream, err := forwardToUpstream(q)
 	if err != nil {
-		return nil, false, upstream, err
+		return nil, false, upstream, false, err
 	}
 
 	cacheTtl := minAnswerTtl(math.MaxUint32, m.Answer)
 	cacheTtl = minAnswerTtl(cacheTtl, m.Ns)
 	cacheTtl = minAnswerTtl(cacheTtl, m.Extra)
-	cacheTtl = max(cacheTtl, serve_stale_for)
+	cacheTtl = max(cacheTtl, serveStaleFor)
 	if len(m.Answer)+len(m.Ns)+len(m.Extra) > 0 {
 		cached := Cached{
 			Msg:     m,
 			Touched: time.Now(),
 			Stale:   false,
+			// The initial request will have prefetch = true,
+			// the follow ups will have prefetch = false
+			Prefetched: !prefetch,
 		}
 		Cache.Set(key, &cached, time.Duration(cacheTtl)*time.Second)
 	}
 
-	return m, false, upstream, nil
+	if prefetch {
+		go prefetchRelated(fqdn, client)
+	}
+
+	return m, false, upstream, false, nil
 }
 
 func minAnswerTtl(cacheTtl uint32, rr []dnslib.RR) uint32 {
@@ -282,12 +225,32 @@ func minAnswerTtl(cacheTtl uint32, rr []dnslib.RR) uint32 {
 	return cacheTtl
 }
 
-func forwardToUpstream(r *dnslib.Msg) (*dnslib.Msg, *string, error) {
+func forwardToUpstream(q *dnslib.Msg) (*dnslib.Msg, *string, error) {
 	// TODO: Implement proper upstream selection
 	upstream := config.All.DNS.Upstreams[0]
 	serverAddr := fmt.Sprintf("%s:53", upstream)
 
-	c := new(dnslib.Client)
-	m, _, err := c.Exchange(r, serverAddr)
+	c := &dnslib.Client{ReadTimeout: 15 * time.Second}
+	m, _, err := c.Exchange(q, serverAddr)
 	return m, &upstream, err
+}
+
+func prefetchRelated(fqdn, client string) {
+	if prefetched, ok := Prefetch[fqdn]; ok {
+		for domain, recordTypes := range prefetched {
+			for _, recordType := range recordTypes {
+				key := fmt.Sprintf("%s-%s", domain, recordType)
+				if _, exists := ongoingPrefetches.LoadOrStore(key, struct{}{}); exists {
+					// Prefetch already in progress, skip
+					continue
+				}
+
+				defer ongoingPrefetches.Delete(key)
+
+				q := new(dnslib.Msg)
+				q.SetQuestion(domain+".", dnslib.StringToType[recordType])
+				process(q, client, false)
+			}
+		}
+	}
 }

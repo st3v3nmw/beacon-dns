@@ -1,5 +1,5 @@
 <div align="center">
-    <img src="docs/img/logo.png" width="100" />
+    <img src="docs/media/logo.png" width="100" />
     <h1>Beacon DNS</h1>
     <p><i>Runs on a single vCPU, a small hill of RAM, and pure determination.</i></p>
 </div>
