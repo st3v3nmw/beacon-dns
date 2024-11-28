@@ -103,9 +103,9 @@
                 - dating
 
           querylog:
+            enabled: true
             log_clients: true
-            query_retention: 2160h
-            stats_retention: 8760h
+            retention: 2160h
 
           sources:
             update_interval: 24h

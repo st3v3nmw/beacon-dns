@@ -298,9 +298,9 @@ func (p *SchedulePeriod) UnmarshalYAML(data []byte) error {
 }
 
 type QueryLogConfig struct {
-	LogClients     bool          `yaml:"log_clients" json:"log_clients"`
-	QueryRetention time.Duration `yaml:"query_retention" json:"query_retention"`
-	StatsRetention time.Duration `yaml:"stats_retention" json:"stats_retention"`
+	Enabled    bool          `yaml:"enabled" json:"enabled"`
+	LogClients bool          `yaml:"log_clients" json:"log_clients"`
+	Retention  time.Duration `yaml:"retention" json:"retention"`
 }
 
 type DHCPConfig struct {
@@ -346,9 +346,9 @@ func Read(filePath string) error {
 	All.Groups = map[string]*GroupConfig{"all": allDevicesGroup}
 
 	All.QueryLog = &QueryLogConfig{
-		LogClients:     true,
-		QueryRetention: 90 * 24 * time.Hour,
-		StatsRetention: 365 * 24 * time.Hour,
+		Enabled:    true,
+		LogClients: true,
+		Retention:  90 * 24 * time.Hour,
 	}
 
 	minUpdateInterval := 24 * time.Hour

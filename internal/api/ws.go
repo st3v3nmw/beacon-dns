@@ -2,6 +2,8 @@ package api
 
 import (
 	"net/http"
+	"slices"
+	"strings"
 
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
@@ -26,12 +28,20 @@ func watch(c echo.Context) error {
 
 	defer ws.Close()
 
+	var clients []string
+	clientsParam := c.QueryParam("clients")
+	if clientsParam != "" {
+		clients = strings.Split(clientsParam, ",")
+	}
+
 	ch := querylog.Broadcaster.Subscribe()
 	defer querylog.Broadcaster.Unsubscribe(ch)
 	for query := range ch {
-		err := ws.WriteJSON(query)
-		if err != nil {
-			return err
+		if len(clients) == 0 || slices.Contains(clients, query.Hostname) {
+			err := ws.WriteJSON(query)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

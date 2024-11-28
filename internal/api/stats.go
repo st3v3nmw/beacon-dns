@@ -10,12 +10,12 @@ import (
 )
 
 func getDeviceStats(c echo.Context) error {
-	lastStr := c.QueryParam("last")
-	if lastStr == "" {
-		lastStr = "24h"
+	lastParam := c.QueryParam("last")
+	if lastParam == "" {
+		lastParam = "24h"
 	}
 
-	last, err := time.ParseDuration(lastStr)
+	last, err := time.ParseDuration(lastParam)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}

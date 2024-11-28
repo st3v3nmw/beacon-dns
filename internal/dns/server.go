@@ -42,29 +42,31 @@ func handleRequest(w dnslib.ResponseWriter, q *dnslib.Msg) {
 	response := process(q, hostname, true)
 	w.WriteMsg(response.Msg)
 
-	qn := q.Question[0]
-	queryType, ok := dnslib.TypeToString[qn.Qtype]
-	if !ok {
-		queryType = "UNKNOWN"
-	}
+	if config.All.QueryLog.Enabled {
+		qn := q.Question[0]
+		queryType, ok := dnslib.TypeToString[qn.Qtype]
+		if !ok {
+			queryType = "UNKNOWN"
+		}
 
-	end := time.Now()
-	querylog.QL.Log(
-		&querylog.QueryLog{
-			Hostname:       hostname,
-			IP:             ip,
-			Domain:         strings.TrimSuffix(qn.Name, "."),
-			QueryType:      queryType,
-			Cached:         response.Cached,
-			Blocked:        response.Blocked,
-			BlockReason:    response.BlockReason,
-			Upstream:       response.Upstream,
-			ResponseCode:   dnslib.RcodeToString[response.Msg.Rcode],
-			ResponseTimeMs: int(end.UnixMilli() - start.UnixMilli()),
-			Prefetched:     response.Prefetched,
-			Timestamp:      start.UTC(),
-		},
-	)
+		end := time.Now()
+		querylog.QL.Log(
+			&querylog.QueryLog{
+				Hostname:       hostname,
+				IP:             ip,
+				Domain:         strings.TrimSuffix(qn.Name, "."),
+				QueryType:      queryType,
+				Cached:         response.Cached,
+				Blocked:        response.Blocked,
+				BlockReason:    response.BlockReason,
+				Upstream:       response.Upstream,
+				ResponseCode:   dnslib.RcodeToString[response.Msg.Rcode],
+				ResponseTimeMs: int(end.UnixMilli() - start.UnixMilli()),
+				Prefetched:     response.Prefetched,
+				Timestamp:      start.UTC(),
+			},
+		)
+	}
 }
 
 func blockFQDN(q *dnslib.Msg) *dnslib.Msg {

@@ -8,13 +8,13 @@ import (
 )
 
 func trace(c echo.Context) error {
-	name := c.QueryParam("name")
-	if name == "" {
+	nameParam := c.QueryParam("name")
+	if nameParam == "" {
 		err := "`name` query param must be provided"
 		return echo.NewHTTPError(http.StatusBadRequest, err)
 	}
 
-	trace, err := dns.HandleTrace(name, c.RealIP())
+	trace, err := dns.HandleTrace(nameParam, c.RealIP())
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
