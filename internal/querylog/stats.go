@@ -2,6 +2,8 @@ package querylog
 
 import (
 	"encoding/json"
+	"fmt"
+	"time"
 )
 
 const getDeviceStatsQuery = `
@@ -44,7 +46,7 @@ SELECT
         FROM (
             SELECT query_type, COUNT(*) as cnt
             FROM queries q2
-            WHERE q2.hostname = q.hostname AND timestamp >= datetime('now', '-2 hours')
+            WHERE q2.hostname = q.hostname AND timestamp >= datetime('now', ?)
             GROUP BY query_type
             ORDER BY cnt DESC
         )
@@ -56,7 +58,7 @@ SELECT
         FROM (
             SELECT block_reason, COUNT(*) as cnt
             FROM queries q2
-            WHERE q2.hostname = q.hostname AND block_reason IS NOT NULL AND timestamp >= datetime('now', '-2 hours')
+            WHERE q2.hostname = q.hostname AND block_reason IS NOT NULL AND timestamp >= datetime('now', ?)
             GROUP BY block_reason
             ORDER BY cnt DESC
         )
@@ -68,7 +70,7 @@ SELECT
         FROM (
             SELECT upstream, COUNT(*) as cnt
             FROM queries q2
-            WHERE q2.hostname = q.hostname AND upstream IS NOT NULL AND timestamp >= datetime('now', '-2 hours')
+            WHERE q2.hostname = q.hostname AND upstream IS NOT NULL AND timestamp >= datetime('now', ?)
             GROUP BY upstream
             ORDER BY cnt DESC
         )
@@ -80,7 +82,7 @@ SELECT
         FROM (
             SELECT domain, COUNT(*) as cnt
             FROM queries q2
-            WHERE q2.hostname = q.hostname AND q2.blocked IS FALSE AND timestamp >= datetime('now', '-2 hours')
+            WHERE q2.hostname = q.hostname AND q2.blocked IS FALSE AND timestamp >= datetime('now', ?)
             GROUP BY domain
             ORDER BY cnt DESC
             LIMIT 10
@@ -92,7 +94,7 @@ SELECT
         FROM (
             SELECT domain, COUNT(*) as cnt
             FROM queries q2
-            WHERE q2.hostname = q.hostname AND q2.blocked IS TRUE AND timestamp >= datetime('now', '-2 hours')
+            WHERE q2.hostname = q.hostname AND q2.blocked IS TRUE AND timestamp >= datetime('now', ?)
             GROUP BY domain
             ORDER BY cnt DESC
             LIMIT 10
@@ -105,7 +107,7 @@ SELECT
         FROM (
             SELECT response_code, COUNT(*) as cnt
             FROM queries q2
-            WHERE q2.hostname = q.hostname AND timestamp >= datetime('now', '-2 hours')
+            WHERE q2.hostname = q.hostname AND timestamp >= datetime('now', ?)
             GROUP BY response_code
             ORDER BY cnt DESC
             LIMIT 10
@@ -118,14 +120,14 @@ SELECT
         FROM (
             SELECT ip, COUNT(*) as cnt
             FROM queries q2
-            WHERE q2.hostname = q.hostname AND timestamp >= datetime('now', '-2 hours')
+            WHERE q2.hostname = q.hostname AND timestamp >= datetime('now', ?)
             GROUP BY ip
             ORDER BY cnt DESC
             LIMIT 10
         )
     ) as ips
 FROM queries q
-WHERE timestamp >= datetime('now', '-2 hours')
+WHERE timestamp >= datetime('now', ?)
 GROUP BY hostname
 ORDER BY total_queries DESC;
 `
@@ -153,8 +155,9 @@ type DeviceStats struct {
 	IPs                        map[string]int `json:"ips"`
 }
 
-func GetDeviceStats() ([]DeviceStats, error) {
-	rows, err := DB.Query(getDeviceStatsQuery)
+func GetDeviceStats(last time.Duration) ([]DeviceStats, error) {
+	offset := fmt.Sprintf("-%d minutes", int(last.Minutes()))
+	rows, err := DB.Query(getDeviceStatsQuery, offset, offset, offset, offset, offset, offset, offset, offset)
 	if err != nil {
 		return nil, err
 	}

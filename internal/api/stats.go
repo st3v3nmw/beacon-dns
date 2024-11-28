@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/st3v3nmw/beacon/internal/dns"
@@ -9,7 +10,17 @@ import (
 )
 
 func getDeviceStats(c echo.Context) error {
-	stats, err := querylog.GetDeviceStats()
+	lastStr := c.QueryParam("last")
+	if lastStr == "" {
+		lastStr = "24h"
+	}
+
+	last, err := time.ParseDuration(lastStr)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	stats, err := querylog.GetDeviceStats(last)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
