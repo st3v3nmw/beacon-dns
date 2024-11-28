@@ -79,3 +79,7 @@ Code, issues, reporting false positives...
 ### Libraries
 
 ### Blocklists
+
+### Logo
+
+<a href="https://www.flaticon.com/free-icons/lighthouse" title="lighthouse icons">Logo created by Freepik - Flaticon</a>
