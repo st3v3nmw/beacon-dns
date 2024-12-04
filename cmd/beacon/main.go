@@ -55,6 +55,16 @@ func main() {
 	querylog.Collect()
 	defer querylog.QL.Shutdown()
 
+	_, err = scheduler.NewJob(
+		gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(3, 30, 0))),
+		gocron.NewTask(querylog.DeleteOldQueries),
+		gocron.WithStartAt(gocron.WithStartImmediately()),
+	)
+	if err != nil {
+		slog.Error(err.Error())
+		return
+	}
+
 	// Cache
 	slog.Info("Setting up cache...")
 	if err := dns.NewCache(); err != nil {
@@ -64,7 +74,7 @@ func main() {
 	defer dns.Cache.Close()
 
 	_, err = scheduler.NewJob(
-		gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(3, 0, 0))),
+		gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(3, 15, 0))),
 		gocron.NewTask(dns.UpdateAccessPatterns),
 		gocron.WithStartAt(gocron.WithStartImmediately()),
 	)
@@ -90,7 +100,7 @@ func main() {
 	os.MkdirAll(lists.Dir, 0755)
 
 	sourcesUpdateDays := int(config.All.Sources.UpdateInterval.Seconds()) / 86400
-	cronStr := fmt.Sprintf("0 2 */%d * *", sourcesUpdateDays)
+	cronStr := fmt.Sprintf("0 3 */%d * *", sourcesUpdateDays)
 	_, err = scheduler.NewJob(
 		gocron.CronJob(cronStr, false),
 		gocron.NewTask(lists.Sync),

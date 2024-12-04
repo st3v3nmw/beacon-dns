@@ -2,11 +2,13 @@ package querylog
 
 import (
 	"database/sql"
+	"fmt"
 	"log/slog"
 	"sync"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/st3v3nmw/beacon/internal/config"
 	"github.com/st3v3nmw/beacon/internal/types"
 )
 
@@ -48,8 +50,6 @@ func NewDB() (err error) {
 
 	// Run migrations
 	_, err = DB.Exec(schema)
-
-	// TODO: Drop data that's past the retention period
 	return
 }
 
@@ -171,4 +171,29 @@ func (ql *QueryLogger) flush() {
 func (ql *QueryLogger) Shutdown() {
 	close(ql.shutdown)
 	ql.wg.Wait()
+}
+
+func DeleteOldQueries() error {
+	retention := config.All.QueryLog.Retention
+	offset := fmt.Sprintf("-%d minutes", int(retention.Minutes()))
+
+	const deleteOldQueriesQuery = `
+		DELETE FROM queries
+		WHERE timestamp < datetime('now', ?);
+	`
+
+	stmt, err := DB.Prepare(deleteOldQueriesQuery)
+	if err != nil {
+		slog.Error("failed to prepare query:", "error", err)
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(offset)
+	if err != nil {
+		slog.Error("failed to execute query:", "error", err)
+		return err
+	}
+
+	return nil
 }
