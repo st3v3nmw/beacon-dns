@@ -51,13 +51,6 @@ func getDefaultSources() []SourceListConfig {
 			Format:   types.SourceFormatDomains,
 		},
 		{
-			Name:     "stamparm:ipsum:level-3",
-			URL:      "https://raw.githubusercontent.com/stamparm/ipsum/refs/heads/master/levels/3.txt",
-			Category: types.CategoryMalware,
-			Action:   types.ActionBlock,
-			Format:   types.SourceFormatIps,
-		},
-		{
 			Name:     "beacon-dns-lists:blocklists:malware",
 			URL:      "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/blocklists/malware",
 			Category: types.CategoryMalware,

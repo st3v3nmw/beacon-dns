@@ -42,16 +42,23 @@
     - name: Create configuration file
       copy:
         content: |
+          system:
+            timezone: Africa/Nairobi
+
           dns:
             port: 53
             upstreams:
               - 1.1.1.1
               - 8.8.8.8
-            timezone: Africa/Nairobi
 
           cache:
             capacity: 10000
-            serve_stale_for: 300s
+            serve_stale:
+              for: 5m
+              with_ttl: 15s
+            access_patterns:
+              follow: true
+              look_back: 14d
 
           api:
             port: 80
@@ -105,10 +112,10 @@
           querylog:
             enabled: true
             log_clients: true
-            retention: 2160h
+            retention: 90d
 
           sources:
-            update_interval: 24h
+            update_interval: 1d
         dest: /var/lib/beacon/config.yml
         mode: "0600"
 

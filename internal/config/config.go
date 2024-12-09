@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -17,7 +18,37 @@ var (
 	Location *time.Location
 )
 
+type DurationValue struct {
+	time.Duration
+}
+
+func (d *DurationValue) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var s string
+	if err := unmarshal(&s); err != nil {
+		return err
+	}
+
+	// Parse day-based duration
+	if len(s) > 0 && s[len(s)-1] == 'd' {
+		days, err := strconv.Atoi(s[:len(s)-1])
+		if err != nil {
+			return fmt.Errorf("invalid day duration: %v", err)
+		}
+		d.Duration = time.Duration(days) * 24 * time.Hour
+		return nil
+	}
+
+	// Fall back to standard time.ParseDuration
+	parsed, err := time.ParseDuration(s)
+	if err != nil {
+		return err
+	}
+	d.Duration = parsed
+	return nil
+}
+
 type Config struct {
+	System       *SystemConfig              `yaml:"system" json:"system"`
 	DNS          *DNSConfig                 `yaml:"dns" json:"dns"`
 	Cache        *CacheConfig               `yaml:"cache" json:"cache"`
 	API          *APIConfig                 `yaml:"api" json:"api"`
@@ -126,15 +157,29 @@ func (c *Config) IsClientBlocked(client string, category types.Category) bool {
 	return false
 }
 
+type SystemConfig struct {
+	Timezone string `yaml:"timezone" json:"timezone"`
+}
+
 type DNSConfig struct {
 	Port      uint16   `yaml:"port" json:"port"`
 	Upstreams []string `yaml:"upstreams" json:"upstreams"`
-	Timezone  string   `yaml:"timezone" json:"timezone"`
 }
 
 type CacheConfig struct {
-	Capacity      int           `yaml:"capacity" json:"capacity"`
-	ServeStaleFor time.Duration `yaml:"serve_stale_for" json:"serve_stale_for"`
+	Capacity       int                        `yaml:"capacity" json:"capacity"`
+	ServeStale     *CacheServeStaleConfig     `yaml:"serve_stale" json:"serve_stale"`
+	AccessPatterns *CacheAccessPatternsConfig `yaml:"access_patterns" json:"access_patterns"`
+}
+
+type CacheServeStaleConfig struct {
+	For     DurationValue `yaml:"for" json:"for"`
+	WithTTL DurationValue `yaml:"with_ttl" json:"with_ttl"`
+}
+
+type CacheAccessPatternsConfig struct {
+	Follow   bool          `yaml:"follow" json:"follow"`
+	LookBack DurationValue `yaml:"look_back" json:"look_back"`
 }
 
 type APIConfig struct {
@@ -152,7 +197,7 @@ type GroupConfig struct {
 	Block      []types.Category `yaml:"block" json:"block,omitempty"`
 	SafeSearch bool             `yaml:"safe_search" json:"safe_search"`
 
-	// for quick lookups
+	// For quick lookups
 	devices map[string]bool
 	block   map[types.Category]bool
 }
@@ -174,7 +219,7 @@ type ScheduleConfig struct {
 	When    []*ScheduleWhen  `yaml:"when" json:"when"`
 	Block   []types.Category `yaml:"block" json:"block"`
 
-	// for quick lookups
+	// For quick lookups
 	applyTo map[string]bool
 	block   map[types.Category]bool
 }
@@ -255,7 +300,7 @@ type SchedulePeriod struct {
 	Start time.Time `yaml:"start" json:"start"`
 	End   time.Time `yaml:"end" json:"end"`
 
-	// for quick lookups
+	// For quick lookups
 	start int
 	end   int
 }
@@ -300,7 +345,7 @@ func (p *SchedulePeriod) UnmarshalYAML(data []byte) error {
 type QueryLogConfig struct {
 	Enabled    bool          `yaml:"enabled" json:"enabled"`
 	LogClients bool          `yaml:"log_clients" json:"log_clients"`
-	Retention  time.Duration `yaml:"retention" json:"retention"`
+	Retention  DurationValue `yaml:"retention" json:"retention"`
 }
 
 type DHCPConfig struct {
@@ -308,7 +353,7 @@ type DHCPConfig struct {
 }
 
 type SourcesConfig struct {
-	UpdateInterval time.Duration      `yaml:"update_interval" json:"update_interval"`
+	UpdateInterval DurationValue      `yaml:"update_interval" json:"update_interval"`
 	Lists          []SourceListConfig `yaml:"lists" json:"lists"`
 }
 
@@ -327,15 +372,23 @@ func Read(filePath string) error {
 	}
 
 	// Set defaults
+	All.System = &SystemConfig{
+		Timezone: time.Now().Location().String(),
+	}
+
 	All.DNS = &DNSConfig{
 		Port:      53,
 		Upstreams: []string{"1.1.1.1", "8.8.8.8"},
-		Timezone:  time.Now().Location().String(),
 	}
 
-	All.Cache = &CacheConfig{
-		Capacity:      10_000,
-		ServeStaleFor: 5 * time.Minute,
+	All.Cache = &CacheConfig{Capacity: 10_000}
+	All.Cache.ServeStale = &CacheServeStaleConfig{
+		For:     DurationValue{5 * time.Minute},
+		WithTTL: DurationValue{15 * time.Second},
+	}
+	All.Cache.AccessPatterns = &CacheAccessPatternsConfig{
+		Follow:   true,
+		LookBack: DurationValue{14 * 24 * time.Hour},
 	}
 
 	All.API = &APIConfig{Port: 80}
@@ -348,12 +401,12 @@ func Read(filePath string) error {
 	All.QueryLog = &QueryLogConfig{
 		Enabled:    true,
 		LogClients: true,
-		Retention:  90 * 24 * time.Hour,
+		Retention:  DurationValue{90 * 24 * time.Hour},
 	}
 
-	minUpdateInterval := 24 * time.Hour
+	oneDay := DurationValue{24 * time.Hour}
 	All.Sources = &SourcesConfig{
-		UpdateInterval: minUpdateInterval,
+		UpdateInterval: oneDay,
 		Lists:          getDefaultSources(),
 	}
 
@@ -362,12 +415,18 @@ func Read(filePath string) error {
 		return err
 	}
 
-	All.precompute()
-
-	if All.Sources.UpdateInterval < minUpdateInterval {
-		All.Sources.UpdateInterval = minUpdateInterval
+	// Enforce minimums
+	if All.Cache.AccessPatterns.LookBack.Duration < oneDay.Duration {
+		All.Cache.AccessPatterns.LookBack = oneDay
 	}
 
-	Location, err = time.LoadLocation(All.DNS.Timezone)
+	if All.Sources.UpdateInterval.Duration < oneDay.Duration {
+		All.Sources.UpdateInterval = oneDay
+	}
+
+	// Precompute
+	All.precompute()
+
+	Location, err = time.LoadLocation(All.System.Timezone)
 	return err
 }

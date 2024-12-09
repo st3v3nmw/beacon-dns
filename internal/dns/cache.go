@@ -18,6 +18,7 @@ import (
 var (
 	Cache             otter.CacheWithVariableTTL[string, *Cached]
 	serveStaleFor     uint32
+	serveStaleWithTTL uint32
 	Prefetch          = map[string]map[string][]string{}
 	ongoingPrefetches sync.Map
 )
@@ -31,7 +32,8 @@ func NewCache() (err error) {
 		return err
 	}
 
-	serveStaleFor = uint32(config.All.Cache.ServeStaleFor.Seconds())
+	serveStaleFor = uint32(config.All.Cache.ServeStale.For.Seconds())
+	serveStaleWithTTL = uint32(config.All.Cache.ServeStale.WithTTL.Seconds())
 
 	loadAccessPatterns()
 
@@ -57,7 +59,7 @@ func (c *Cached) reduceTtl(rrs []dnslib.RR, elapsed time.Duration) {
 			header.Ttl -= elapsed
 		} else {
 			c.Stale = true
-			header.Ttl = 15
+			header.Ttl = serveStaleWithTTL
 		}
 	}
 }
@@ -108,7 +110,7 @@ type AccessPattern struct {
 }
 
 func fetchQueries() ([]querylog.QueryLog, error) {
-	sql := `
+	query := `
 		SELECT
 			hostname,
 			domain,
@@ -119,11 +121,13 @@ func fetchQueries() ([]querylog.QueryLog, error) {
 			blocked IS FALSE
 			AND response_code = 'NOERROR'
 			AND query_type != 'UNKNOWN'
-			AND timestamp >= datetime('now', '-14 days')
+			AND timestamp >= datetime('now', ?)
 		ORDER BY timestamp ASC
 	`
 
-	rows, err := querylog.DB.Query(sql)
+	lookback := config.All.Cache.AccessPatterns.LookBack
+	offset := fmt.Sprintf("-%d minutes", int(lookback.Minutes()))
+	rows, err := querylog.DB.Query(query, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -178,20 +182,18 @@ func binQueries(queries []querylog.QueryLog) map[string]map[string]*domainStats 
 	return bins
 }
 
-func findAccessPatterns(bins map[string]map[string]*domainStats) ([]AccessPattern, float64) {
+func findAccessPatterns(bins map[string]map[string]*domainStats) []AccessPattern {
 	var result []AccessPattern
-
-	total := 0.0
 	for domain, bin := range bins {
-		if len(bin) == 0 {
-			continue
-		}
-
 		maxCount := 0.0
 		for _, details := range bin {
 			if details.Count > maxCount {
 				maxCount = details.Count
 			}
+		}
+
+		if maxCount < 5 {
+			continue
 		}
 
 		pattern := AccessPattern{
@@ -208,7 +210,6 @@ func findAccessPatterns(bins map[string]map[string]*domainStats) ([]AccessPatter
 			}
 		}
 
-		total += maxCount
 		result = append(result, pattern)
 	}
 
@@ -216,10 +217,15 @@ func findAccessPatterns(bins map[string]map[string]*domainStats) ([]AccessPatter
 		return b.Occurrences - a.Occurrences
 	})
 
-	return result, total
+	return result
 }
 
 func UpdateAccessPatterns() error {
+	if !config.All.Cache.AccessPatterns.Follow {
+		slog.Debug("Following access patterns disabled, skipping...")
+		return nil
+	}
+
 	slog.Info("Updating access patterns...")
 
 	queries, err := fetchQueries()
@@ -228,7 +234,7 @@ func UpdateAccessPatterns() error {
 	}
 
 	bins := binQueries(queries)
-	patterns, total := findAccessPatterns(bins)
+	patterns := findAccessPatterns(bins)
 
 	tx, err := querylog.DB.Begin()
 	if err != nil {
@@ -250,7 +256,6 @@ func UpdateAccessPatterns() error {
 	}
 	defer stmt.Close()
 
-	threshold, running := total*0.8, 0.0
 	for _, pattern := range patterns {
 		prefetch, _ := json.Marshal(pattern.Prefetch)
 
@@ -258,11 +263,6 @@ func UpdateAccessPatterns() error {
 		if err != nil {
 			tx.Rollback()
 			return fmt.Errorf("failed to insert query: %w", err)
-		}
-
-		running += float64(pattern.Occurrences)
-		if running > threshold {
-			break
 		}
 	}
 
@@ -279,6 +279,10 @@ func UpdateAccessPatterns() error {
 }
 
 func loadAccessPatterns() error {
+	if !config.All.Cache.AccessPatterns.Follow {
+		return nil
+	}
+
 	newPrefetch := map[string]map[string][]string{}
 
 	rows, err := querylog.DB.Query("SELECT domain, prefetch FROM access_patterns")

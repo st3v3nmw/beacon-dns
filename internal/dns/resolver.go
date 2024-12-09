@@ -128,7 +128,7 @@ func isBlocked(domain, client string) (bool, *string, []Rule) {
 
 	prefix, raw, found := tree.LongestPrefix(key)
 	if found {
-		// check that it is indeed a match
+		// Check that it is indeed a match
 		// in some cases like key = com.serverfault & blocked = com.server
 		// this matches, even though it shouldn't
 		// so we need to check that serverfault.com has suffix server.com
@@ -178,7 +178,7 @@ func resolve(q *dnslib.Msg, fqdn, client string, prefetch bool) (*dnslib.Msg, bo
 			go process(q, client, false)
 		}
 
-		if prefetch {
+		if prefetch && config.All.Cache.AccessPatterns.Follow {
 			go prefetchRelated(fqdn, client)
 		}
 

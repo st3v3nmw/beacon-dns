@@ -174,21 +174,20 @@ func (ql *QueryLogger) Shutdown() {
 }
 
 func DeleteOldQueries() error {
-	retention := config.All.QueryLog.Retention
-	offset := fmt.Sprintf("-%d minutes", int(retention.Minutes()))
-
-	const deleteOldQueriesQuery = `
+	const query = `
 		DELETE FROM queries
-		WHERE timestamp < datetime('now', ?);
+		WHERE timestamp < datetime('now', ?)
 	`
 
-	stmt, err := DB.Prepare(deleteOldQueriesQuery)
+	stmt, err := DB.Prepare(query)
 	if err != nil {
 		slog.Error("failed to prepare query:", "error", err)
 		return err
 	}
 	defer stmt.Close()
 
+	retention := config.All.QueryLog.Retention
+	offset := fmt.Sprintf("-%d minutes", int(retention.Minutes()))
 	_, err = stmt.Exec(offset)
 	if err != nil {
 		slog.Error("failed to execute query:", "error", err)

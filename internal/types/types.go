@@ -29,8 +29,6 @@ type SourceFormat string
 const (
 	SourceFormatDomains SourceFormat = "domains"
 	SourceFormatHosts   SourceFormat = "hosts"
-	// TODO: Parse these
-	SourceFormatIps SourceFormat = "ips"
 )
 
 type ClientLookupMethod string

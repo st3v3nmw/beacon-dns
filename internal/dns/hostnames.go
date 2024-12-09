@@ -55,7 +55,7 @@ func lookupLocalHostname(ip string) string {
 }
 
 func lookupHostnameOnTailscale(ip string) string {
-	// tailscale results look like: <hostname>.<tailnet-name>.ts.net.
+	// Tailscale results look like: <hostname>.<tailnet-name>.ts.net.
 	hostname := reverseDNSLookup(ip)
 	return strings.Split(hostname, ".")[0]
 }

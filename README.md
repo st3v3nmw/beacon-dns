@@ -4,7 +4,7 @@
     <p><i>Runs on a single vCPU, a small hill of RAM, and pure determination.</i></p>
 </div>
 
-Beacon DNS is a DNS resolver with customizable filtering for malware, trackers, ads, and unwanted content.
+A DNS resolver with customizable & schedulable filtering for malware, trackers, ads, and unwanted content.
 
 ## Features
 

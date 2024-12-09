@@ -114,11 +114,6 @@ func Sync() error {
 			continue
 		}
 
-		if listConf.Format == types.SourceFormatIps {
-			// TODO: Parse these
-			continue
-		}
-
 		list := Source{
 			Name:     listConf.Name,
 			URL:      listConf.URL,
