@@ -28,6 +28,13 @@ func getDefaultSources() []SourceListConfig {
 			Action:   types.ActionBlock,
 			Format:   types.SourceFormatDomains,
 		},
+		{
+			Name:     "beacon-dns-lists:blocklists:ads",
+			URL:      "https://raw.githubusercontent.com/st3v3nmw/beacon-dns-lists/main/blocklists/ads",
+			Category: types.CategoryAds,
+			Action:   types.ActionBlock,
+			Format:   types.SourceFormatDomains,
+		},
 		// malware, ransomware, phishing, cryptojacking, stalkerware
 		{
 			Name:     "olbat:ut1-blacklists:malware",

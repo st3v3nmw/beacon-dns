@@ -45,6 +45,8 @@ jobs:
         with:
           context: .
           build-args: |
+            BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+            COMMIT_REF=${{ github.sha::7 }}
             VERSION=${{ github.ref_name }}
           push: true
           tags: ${{ steps.metadata.outputs.tags }}
