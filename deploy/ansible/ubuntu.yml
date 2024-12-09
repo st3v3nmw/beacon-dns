@@ -77,7 +77,7 @@
             screens:
               devices:
                 - phone
-                - terra
+                - laptop
                 - tv
 
           schedules:

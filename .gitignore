@@ -22,16 +22,19 @@ beacon
 go.work
 go.work.sum
 
-# config
+# Config
 .env
 .env.prod
 config.yml
 config.yaml
 
-# data
+# Data
 .data
 *.db
 *.db-journal
 
 # IDEs
 .vscode/
+
+# Docs
+.venv/

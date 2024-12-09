@@ -1,0 +1,39 @@
+site_name: Beacon DNS
+site_url: https://www.beacondns.org/
+site_author: Stephen Mwangi
+site_description: >-
+  A DNS resolver with customizable & schedulable filtering for malware, trackers, ads, and unwanted content.
+
+repo_name: st3v3nmw/beacon-dns
+repo_url: https://github.com/st3v3nmw/beacon-dns/
+edit_uri: ""
+docs_dir: docs
+
+theme:
+  name: material
+  logo: media/logo.png
+  favicon: media/favicon.ico
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.top
+    - navigation.expand
+    - toc.follow
+
+nav:
+  - Index: index.md
+
+plugins:
+  - search
+
+remote_branch: gh-pages
+remote_name: origin
