@@ -13,8 +13,12 @@ import (
 	"github.com/st3v3nmw/beacon/internal/querylog"
 )
 
+var (
+	Version = "dev"
+)
+
 func main() {
-	slog.Info("Beacon DNS")
+	slog.Info("Beacon DNS", "version", Version)
 
 	// Read config
 	configFile, err := mustGetEnv("CONFIG_FILE")
