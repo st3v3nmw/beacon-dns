@@ -4,7 +4,7 @@
     <p><i>Runs on a single vCPU, a small hill of RAM, and pure determination.</i></p>
 </div>
 
-A DNS resolver with customizable & schedulable filtering for malware, trackers, ads, and unwanted content.
+A DNS resolver with customizable & schedulable filtering for malware, trackers, ads, and other unwanted content.
 
 ## Features
 
@@ -12,7 +12,7 @@ A DNS resolver with customizable & schedulable filtering for malware, trackers, 
 
 Supports blocking of ads, malware, adult content, dating & social media sites, video streaming platforms, and [other content](https://github.com/st3v3nmw/beacon-dns/blob/main/internal/config/sources.go).
 
-Blocking can be done network-wide or per device group.
+Blocking can be done network-wide or per device group:
 
 ```yaml
 groups:
@@ -30,7 +30,7 @@ groups:
       - tv
 ```
 
-It can also be scheduled so that certain content is only blocked at certain times.
+Blocking can also be scheduled so that certain content is only blocked at certain times:
 
 ```yaml
 schedules:
@@ -103,7 +103,7 @@ querylog:
 You can watch the querylog live:
 
 ```console
-$ websocat ws://mars/api/watch\?follow=phone
+$ websocat ws://mars/api/watch\?clients=phone
 {"hostname":"phone","ip":"<ip>","domain":"spclient.wg.spotify.com","query_type":"A","cached":false,"blocked":false,"block_reason":null,"upstream":"1.1.1.1","response_code":"NOERROR","response_time_ms":1,"prefetched":false,"timestamp":"2024-12-09T21:06:05.067810278Z"}
 {"hostname":"phone","ip":"<ip>","domain":"spclient.wg.spotify.com","query_type":"A","cached":true,"blocked":false,"block_reason":null,"upstream":null,"response_code":"NOERROR","response_time_ms":0,"prefetched":false,"timestamp":"2024-12-09T21:06:05.08479734Z"}
 ```
@@ -166,10 +166,12 @@ $ curl -s http://mars/api/stats/devices?last=24h | jq
 ### TODO
 
 - [ ] [CLI Interface](https://github.com/st3v3nmw/beaconctl)
+- [ ] [Documentation website](https://www.beacondns.org/)
+- [ ] Split DNS
+- [ ] DHCP Support
 - [ ] Call upstream resolvers over:
   - [ ] DNS over TLS (DoT)
   - [ ] DNS over HTTPS (DoH)
-- [ ] DHCP Support
 - [ ] Safe Search
 - [ ] DNSSEC Validation
 
