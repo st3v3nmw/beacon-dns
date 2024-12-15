@@ -23,12 +23,15 @@ ENV CGO_ENABLED=1
 
 WORKDIR /app
 
-RUN apk add --no-cache gcc musl-dev
+RUN apk add --no-cache gcc musl-dev wget unzip
 
 COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
+
+RUN wget https://github.com/nalgeon/sqlean/releases/download/0.27.1/sqlean-linux-x86.zip -O /tmp/sqlean.zip \
+    && unzip /tmp/sqlean.zip -d ./sqlean
 
 RUN go build \
     -ldflags="-w -s -X main.Version=${VERSION}" \
@@ -40,6 +43,7 @@ FROM alpine:latest
 RUN apk add --no-cache libc6-compat tzdata
 
 COPY --from=builder /app/beacon /beacon
+COPY --from=builder /app/sqlean/stats.so /extensions/stats.so
 
 EXPOSE 80
 EXPOSE 53

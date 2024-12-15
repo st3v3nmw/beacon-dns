@@ -7,15 +7,16 @@ import (
 	"sync"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/mattn/go-sqlite3"
 	"github.com/st3v3nmw/beacon/internal/config"
 	"github.com/st3v3nmw/beacon/internal/types"
 )
 
 var (
-	DataDir string
-	DB      *sql.DB
-	QL      *QueryLogger
+	DataDir       string
+	ExtensionsDir string
+	DB            *sql.DB
+	QL            *QueryLogger
 )
 
 const schema = `
@@ -30,7 +31,7 @@ CREATE TABLE IF NOT EXISTS queries (
 	block_reason VARCHAR(50) NULL,
 	upstream VARCHAR(50) NULL,
 	response_code VARCHAR(255) NOT NULL,
-    response_time_ms INTEGER NOT NULL,
+    response_time INTEGER NOT NULL,
 	prefetched BOOLEAN NOT NULL,
 	timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -43,7 +44,13 @@ CREATE TABLE IF NOT EXISTS query_patterns (
 `
 
 func NewDB() (err error) {
-	DB, err = sql.Open("sqlite3", DataDir+"/querylog.db")
+	sql.Register("sqlite_ext",
+		&sqlite3.SQLiteDriver{
+			Extensions: []string{ExtensionsDir + "/stats"},
+		},
+	)
+
+	DB, err = sql.Open("sqlite_ext", DataDir+"/querylog.db")
 	if err != nil {
 		return err
 	}

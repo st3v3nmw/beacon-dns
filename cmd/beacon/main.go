@@ -42,13 +42,18 @@ func main() {
 
 	// Query log
 	slog.Info("Setting up query logger...")
-	dataDir, err := mustGetEnv("DATA_DIR")
+	querylog.DataDir, err = mustGetEnv("DATA_DIR")
 	if err != nil {
 		slog.Error(err.Error())
 		return
 	}
 
-	querylog.DataDir = dataDir
+	querylog.ExtensionsDir, err = mustGetEnv("EXTENSIONS_DIR")
+	if err != nil {
+		slog.Error(err.Error())
+		return
+	}
+
 	err = querylog.NewDB()
 	if err != nil {
 		slog.Error(err.Error())
@@ -100,7 +105,7 @@ func main() {
 
 	// Lists
 	slog.Info("Setting up lists sync job...")
-	lists.Dir = fmt.Sprintf("%s/%s", dataDir, "lists")
+	lists.Dir = fmt.Sprintf("%s/%s", querylog.DataDir, "lists")
 	os.MkdirAll(lists.Dir, 0755)
 
 	sourcesUpdateDays := int(config.All.Sources.UpdateInterval.Seconds()) / 86400

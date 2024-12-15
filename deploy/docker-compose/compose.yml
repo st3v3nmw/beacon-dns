@@ -7,6 +7,7 @@ services:
     environment:
       - BEACON_CONFIG_FILE=/data/config.yml
       - BEACON_DATA_DIR=/data
+      - BEACON_EXTENSIONS_DIR=/extensions
     restart: unless-stopped
     privileged: true
     network_mode: host

@@ -35,10 +35,10 @@ SELECT
     END as prefetched_ratio,
 
     -- Performance
-    ROUND(AVG(response_time_ms), 2) as avg_response_time_ms,
-    ROUND(COALESCE(AVG(CASE WHEN upstream THEN response_time_ms END), 0), 2) as avg_forwarded_response_time_ms,
-    MIN(response_time_ms) as min_response_time_ms,
-    MAX(response_time_ms) as max_response_time_ms,
+    MEDIAN(response_time) as typical_response_time,
+    COALESCE(MEDIAN(CASE WHEN upstream THEN response_time END), 0) as typical_forwarded_response_time,
+    MIN(response_time) as min_response_time,
+    MAX(response_time) as max_response_time,
 
     -- Query types distribution
     (
@@ -133,26 +133,26 @@ ORDER BY total_queries DESC;
 `
 
 type DeviceStats struct {
-	Client                     string         `json:"client"`
-	TotalQueries               int            `json:"total_queries"`
-	UniqueDomains              int            `json:"unique_domains"`
-	CachedQueries              int            `json:"cached_queries"`
-	CacheHitRatio              float64        `json:"cache_hit_ratio"`
-	BlockedQueries             int            `json:"blocked_queries"`
-	BlockRatio                 float64        `json:"block_ratio"`
-	PrefetchedQueries          int            `json:"prefetched_queries"`
-	PrefetchedRatio            float64        `json:"prefetched_ratio"`
-	AvgResponseTimeMs          float64        `json:"avg_response_time_ms"`
-	AvgForwardedResponseTimeMs float64        `json:"avg_forwarded_response_time_ms"`
-	MinResponseTimeMs          int            `json:"min_response_time_ms"`
-	MaxResponseTimeMs          int            `json:"max_response_time_ms"`
-	QueryTypes                 map[string]int `json:"query_types"`
-	BlockReasons               map[string]int `json:"block_reasons"`
-	Upstreams                  map[string]int `json:"upstreams"`
-	ResolvedDomains            map[string]int `json:"resolved_domains"`
-	BlockedDomains             map[string]int `json:"blocked_domains"`
-	ResponseCodes              map[string]int `json:"response_codes"`
-	IPs                        map[string]int `json:"ips"`
+	Client                       string         `json:"client"`
+	TotalQueries                 int            `json:"total_queries"`
+	UniqueDomains                int            `json:"unique_domains"`
+	CachedQueries                int            `json:"cached_queries"`
+	CacheHitRatio                float64        `json:"cache_hit_ratio"`
+	BlockedQueries               int            `json:"blocked_queries"`
+	BlockRatio                   float64        `json:"block_ratio"`
+	PrefetchedQueries            int            `json:"prefetched_queries"`
+	PrefetchedRatio              float64        `json:"prefetched_ratio"`
+	TypicalResponseTime          float64        `json:"typical_response_time"`
+	TypicalForwardedResponseTime float64        `json:"typical_forwarded_response_time"`
+	MinResponseTime              int            `json:"min_response_time"`
+	MaxResponseTime              int            `json:"max_response_time"`
+	QueryTypes                   map[string]int `json:"query_types"`
+	BlockReasons                 map[string]int `json:"block_reasons"`
+	Upstreams                    map[string]int `json:"upstreams"`
+	ResolvedDomains              map[string]int `json:"resolved_domains"`
+	BlockedDomains               map[string]int `json:"blocked_domains"`
+	ResponseCodes                map[string]int `json:"response_codes"`
+	IPs                          map[string]int `json:"ips"`
 }
 
 func GetDeviceStats(last time.Duration) ([]DeviceStats, error) {
@@ -178,10 +178,10 @@ func GetDeviceStats(last time.Duration) ([]DeviceStats, error) {
 			&s.BlockRatio,
 			&s.PrefetchedQueries,
 			&s.PrefetchedRatio,
-			&s.AvgResponseTimeMs,
-			&s.AvgForwardedResponseTimeMs,
-			&s.MinResponseTimeMs,
-			&s.MaxResponseTimeMs,
+			&s.TypicalResponseTime,
+			&s.TypicalForwardedResponseTime,
+			&s.MinResponseTime,
+			&s.MaxResponseTime,
 			&query_types,
 			&block_reasons,
 			&upstreams,

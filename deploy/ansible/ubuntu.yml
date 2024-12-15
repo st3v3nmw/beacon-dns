@@ -36,6 +36,7 @@
         content: |
           BEACON_CONFIG_FILE=/var/lib/beacon/config.yml
           BEACON_DATA_DIR=/var/lib/beacon
+          BEACON_EXTENSIONS_DIR=/var/lib/beacon/extensions
         dest: /var/lib/beacon/.env
         mode: "0600"
 
