@@ -19,7 +19,11 @@ LABEL\
 	org.opencontainers.image.vendor="Beacon DNS" \
 	org.opencontainers.image.version=$VERSION
 
+ENV CGO_ENABLED=1
+
 WORKDIR /app
+
+RUN apk add --no-cache gcc musl-dev tzdata
 
 COPY go.mod go.sum ./
 RUN go mod download
@@ -34,6 +38,7 @@ RUN go build \
 FROM scratch
 
 COPY --from=builder /app/beacon /beacon
+COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 
 EXPOSE 80
 EXPOSE 53
