@@ -288,7 +288,8 @@ func (u *Upstream) weight() int {
 	}
 
 	minsSinceFailure := time.Since(u.LastFailure).Seconds() / 60
-	return int(100 * (1.0 - math.Exp(-minsSinceFailure/2)))
+	weight := 100 * (1.0 - math.Exp(-minsSinceFailure/2))
+	return int(math.Max(weight, 1))
 }
 
 func (u *Upstream) recordFailure() {
@@ -317,6 +318,5 @@ func (um *UpstreamManager) selectUpstream() *Upstream {
 	}
 
 	chooser, _ := weightedrand.NewChooser(choices...)
-	fmt.Printf("weights: %v\n", choices)
 	return chooser.Pick()
 }
