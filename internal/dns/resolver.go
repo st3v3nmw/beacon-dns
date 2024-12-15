@@ -12,13 +12,16 @@ import (
 
 	"github.com/armon/go-radix"
 	dnslib "github.com/miekg/dns"
+	"github.com/mroth/weightedrand/v2"
 	"github.com/st3v3nmw/beacon/internal/config"
 	"github.com/st3v3nmw/beacon/internal/types"
+	"golang.org/x/exp/rand"
 )
 
 var (
-	tree   = radix.New()
-	treeMu sync.RWMutex
+	tree        = radix.New()
+	treeMu      sync.RWMutex
+	upstreamMgr *UpstreamManager
 )
 
 type Response struct {
@@ -226,13 +229,31 @@ func minAnswerTtl(cacheTtl uint32, rr []dnslib.RR) uint32 {
 }
 
 func forwardToUpstream(q *dnslib.Msg) (*dnslib.Msg, *string, error) {
-	// TODO: Implement proper upstream selection
-	upstream := config.All.DNS.Upstreams[0]
-	serverAddr := fmt.Sprintf("%s:53", upstream)
+	var upstream *Upstream
+	var m *dnslib.Msg
+	var err error
 
-	c := &dnslib.Client{ReadTimeout: 15 * time.Second}
-	m, _, err := c.Exchange(q, serverAddr)
-	return m, &upstream, err
+	maxRetries := 3
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		upstream = upstreamMgr.selectUpstream()
+		serverAddr := fmt.Sprintf("%s:53", upstream.Address)
+
+		c := &dnslib.Client{ReadTimeout: 5 * time.Second}
+		m, _, err = c.Exchange(q, serverAddr)
+
+		if err == nil {
+			break
+		}
+
+		upstream.recordFailure()
+
+		jitter := time.Duration(rand.Intn(1000)) * time.Millisecond
+		backoff := time.Duration(math.Pow(2, float64(attempt)))*time.Second + jitter
+		fmt.Printf("sleeping for %s\n", backoff.String())
+		time.Sleep(backoff)
+	}
+
+	return m, &upstream.Address, err
 }
 
 func prefetchRelated(fqdn, client string) {
@@ -253,4 +274,51 @@ func prefetchRelated(fqdn, client string) {
 			}
 		}
 	}
+}
+
+type Upstream struct {
+	Address     string
+	LastFailure time.Time
+	mu          sync.RWMutex
+}
+
+func (u *Upstream) weight() int {
+	u.mu.RLock()
+	defer u.mu.RUnlock()
+
+	if u.LastFailure.IsZero() {
+		return 1.0
+	}
+
+	timeSinceFailure := time.Since(u.LastFailure)
+	return int(10 * math.Max(0.1, math.Exp(-timeSinceFailure.Minutes()/5)))
+}
+
+func (u *Upstream) recordFailure() {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+
+	u.LastFailure = time.Now()
+}
+
+type UpstreamManager struct {
+	upstreams []*Upstream
+}
+
+func NewUpstreamManager(addresses []string) *UpstreamManager {
+	upstreams := make([]*Upstream, len(addresses))
+	for i, addr := range addresses {
+		upstreams[i] = &Upstream{Address: addr}
+	}
+	return &UpstreamManager{upstreams: upstreams}
+}
+
+func (um *UpstreamManager) selectUpstream() *Upstream {
+	choices := []weightedrand.Choice[*Upstream, int]{}
+	for _, upstream := range um.upstreams {
+		choices = append(choices, weightedrand.NewChoice(upstream, upstream.weight()))
+	}
+
+	chooser, _ := weightedrand.NewChooser(choices...)
+	return chooser.Pick()
 }

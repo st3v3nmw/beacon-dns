@@ -19,8 +19,9 @@ func NewUDPServer(addr string) {
 		Addr: addr,
 		Net:  "udp",
 	}
-
 	UDP.Handler = dnslib.HandlerFunc(handleRequest)
+
+	upstreamMgr = NewUpstreamManager(config.All.DNS.Upstreams)
 }
 
 func handleRequest(w dnslib.ResponseWriter, q *dnslib.Msg) {

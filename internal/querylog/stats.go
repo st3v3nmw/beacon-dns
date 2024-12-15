@@ -35,8 +35,8 @@ SELECT
     END as prefetched_ratio,
 
     -- Performance
-    MEDIAN(response_time) as typical_response_time,
-    COALESCE(MEDIAN(CASE WHEN upstream THEN response_time END), 0) as typical_forwarded_response_time,
+    ROUND(MEDIAN(response_time), 2) as typical_response_time,
+    ROUND(COALESCE(MEDIAN(CASE WHEN upstream THEN response_time END), 0), 2) as typical_forwarded_response_time,
     MIN(response_time) as min_response_time,
     MAX(response_time) as max_response_time,
 
