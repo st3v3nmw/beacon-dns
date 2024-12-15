@@ -23,7 +23,7 @@ ENV CGO_ENABLED=1
 
 WORKDIR /app
 
-RUN apk add --no-cache gcc musl-dev tzdata
+RUN apk add --no-cache gcc musl-dev
 
 COPY go.mod go.sum ./
 RUN go mod download
@@ -35,10 +35,11 @@ RUN go build \
     -o beacon ./cmd/beacon
 
 # The beacon-dns image
-FROM scratch
+FROM alpine:latest
+
+RUN apk add --no-cache libc6-compat tzdata
 
 COPY --from=builder /app/beacon /beacon
-COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 
 EXPOSE 80
 EXPOSE 53
