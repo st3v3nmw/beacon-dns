@@ -35,7 +35,7 @@ func NewCache() (err error) {
 	serveStaleFor = uint32(config.All.Cache.ServeStale.For.Seconds())
 	serveStaleWithTTL = uint32(config.All.Cache.ServeStale.WithTTL.Seconds())
 
-	loadAccessPatterns()
+	loadQueryPatterns()
 
 	return nil
 }
@@ -103,7 +103,7 @@ type domainStats struct {
 	Count       float64
 }
 
-type AccessPattern struct {
+type QueryPattern struct {
 	Domain      string              `json:"domain"`
 	Occurrences int                 `json:"occurrences"`
 	Prefetch    map[string][]string `json:"prefetch"`
@@ -125,7 +125,7 @@ func fetchQueries() ([]querylog.QueryLog, error) {
 		ORDER BY timestamp ASC
 	`
 
-	lookback := config.All.Cache.AccessPatterns.LookBack
+	lookback := config.All.Cache.QueryPatterns.LookBack
 	offset := fmt.Sprintf("-%d minutes", int(lookback.Minutes()))
 	rows, err := querylog.DB.Query(query, offset)
 	if err != nil {
@@ -182,8 +182,8 @@ func binQueries(queries []querylog.QueryLog) map[string]map[string]*domainStats 
 	return bins
 }
 
-func findAccessPatterns(bins map[string]map[string]*domainStats) []AccessPattern {
-	var result []AccessPattern
+func findQueryPatterns(bins map[string]map[string]*domainStats) []QueryPattern {
+	var result []QueryPattern
 	for domain, bin := range bins {
 		maxCount := 0.0
 		for _, details := range bin {
@@ -196,7 +196,7 @@ func findAccessPatterns(bins map[string]map[string]*domainStats) []AccessPattern
 			continue
 		}
 
-		pattern := AccessPattern{
+		pattern := QueryPattern{
 			Domain:      domain,
 			Occurrences: int(maxCount),
 			Prefetch:    map[string][]string{},
@@ -213,20 +213,20 @@ func findAccessPatterns(bins map[string]map[string]*domainStats) []AccessPattern
 		result = append(result, pattern)
 	}
 
-	slices.SortFunc(result, func(a, b AccessPattern) int {
+	slices.SortFunc(result, func(a, b QueryPattern) int {
 		return b.Occurrences - a.Occurrences
 	})
 
 	return result
 }
 
-func UpdateAccessPatterns() error {
-	if !config.All.Cache.AccessPatterns.Follow {
-		slog.Debug("Following access patterns disabled, skipping...")
+func UpdateQueryPatterns() error {
+	if !config.All.Cache.QueryPatterns.Follow {
+		slog.Debug("Following query patterns disabled, skipping...")
 		return nil
 	}
 
-	slog.Info("Updating access patterns...")
+	slog.Info("Updating query patterns...")
 
 	queries, err := fetchQueries()
 	if err != nil {
@@ -234,20 +234,20 @@ func UpdateAccessPatterns() error {
 	}
 
 	bins := binQueries(queries)
-	patterns := findAccessPatterns(bins)
+	patterns := findQueryPatterns(bins)
 
 	tx, err := querylog.DB.Begin()
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
-	_, err = querylog.DB.Exec("DELETE FROM access_patterns")
+	_, err = querylog.DB.Exec("DELETE FROM query_patterns")
 	if err != nil {
-		return fmt.Errorf("failed to truncate table access_patterns: %w", err)
+		return fmt.Errorf("failed to truncate table query_patterns: %w", err)
 	}
 
 	stmt, err := tx.Prepare(`
-		INSERT INTO access_patterns (domain, occurrences, prefetch)
+		INSERT INTO query_patterns (domain, occurrences, prefetch)
 		VALUES ($1, $2, $3)
 	`)
 	if err != nil {
@@ -271,21 +271,21 @@ func UpdateAccessPatterns() error {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
-	if err := loadAccessPatterns(); err != nil {
+	if err := loadQueryPatterns(); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func loadAccessPatterns() error {
-	if !config.All.Cache.AccessPatterns.Follow {
+func loadQueryPatterns() error {
+	if !config.All.Cache.QueryPatterns.Follow {
 		return nil
 	}
 
 	newPrefetch := map[string]map[string][]string{}
 
-	rows, err := querylog.DB.Query("SELECT domain, prefetch FROM access_patterns")
+	rows, err := querylog.DB.Query("SELECT domain, prefetch FROM query_patterns")
 	if err != nil {
 		return err
 	}

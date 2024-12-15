@@ -178,7 +178,7 @@ func resolve(q *dnslib.Msg, fqdn, client string, prefetch bool) (*dnslib.Msg, bo
 			go process(q, client, false)
 		}
 
-		if prefetch && config.All.Cache.AccessPatterns.Follow {
+		if prefetch && config.All.Cache.QueryPatterns.Follow {
 			go prefetchRelated(fqdn, client)
 		}
 

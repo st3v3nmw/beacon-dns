@@ -167,9 +167,9 @@ type DNSConfig struct {
 }
 
 type CacheConfig struct {
-	Capacity       int                        `yaml:"capacity" json:"capacity"`
-	ServeStale     *CacheServeStaleConfig     `yaml:"serve_stale" json:"serve_stale"`
-	AccessPatterns *CacheAccessPatternsConfig `yaml:"access_patterns" json:"access_patterns"`
+	Capacity      int                       `yaml:"capacity" json:"capacity"`
+	ServeStale    *CacheServeStaleConfig    `yaml:"serve_stale" json:"serve_stale"`
+	QueryPatterns *CacheQueryPatternsConfig `yaml:"query_patterns" json:"query_patterns"`
 }
 
 type CacheServeStaleConfig struct {
@@ -177,7 +177,7 @@ type CacheServeStaleConfig struct {
 	WithTTL DurationValue `yaml:"with_ttl" json:"with_ttl"`
 }
 
-type CacheAccessPatternsConfig struct {
+type CacheQueryPatternsConfig struct {
 	Follow   bool          `yaml:"follow" json:"follow"`
 	LookBack DurationValue `yaml:"look_back" json:"look_back"`
 }
@@ -386,7 +386,7 @@ func Read(filePath string) error {
 		For:     DurationValue{5 * time.Minute},
 		WithTTL: DurationValue{15 * time.Second},
 	}
-	All.Cache.AccessPatterns = &CacheAccessPatternsConfig{
+	All.Cache.QueryPatterns = &CacheQueryPatternsConfig{
 		Follow:   true,
 		LookBack: DurationValue{14 * 24 * time.Hour},
 	}
@@ -416,8 +416,8 @@ func Read(filePath string) error {
 	}
 
 	// Enforce minimums
-	if All.Cache.AccessPatterns.LookBack.Duration < oneDay.Duration {
-		All.Cache.AccessPatterns.LookBack = oneDay
+	if All.Cache.QueryPatterns.LookBack.Duration < oneDay.Duration {
+		All.Cache.QueryPatterns.LookBack = oneDay
 	}
 
 	if All.Sources.UpdateInterval.Duration < oneDay.Duration {

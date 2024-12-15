@@ -79,7 +79,7 @@ func main() {
 
 	_, err = scheduler.NewJob(
 		gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(3, 15, 0))),
-		gocron.NewTask(dns.UpdateAccessPatterns),
+		gocron.NewTask(dns.UpdateQueryPatterns),
 		gocron.WithStartAt(gocron.WithStartImmediately()),
 	)
 	if err != nil {

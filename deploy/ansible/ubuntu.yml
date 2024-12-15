@@ -56,7 +56,7 @@
             serve_stale:
               for: 5m
               with_ttl: 15s
-            access_patterns:
+            query_patterns:
               follow: true
               look_back: 14d
 

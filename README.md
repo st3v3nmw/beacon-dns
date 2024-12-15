@@ -57,7 +57,7 @@ Supports caching of DNS records for up to the record's TTL. This can then be ser
 
 But, DNS records on the internet use [ridicuously low TTLs](https://blog.apnic.net/2019/11/12/stop-using-ridiculously-low-dns-ttls/). The resolver can be configured to serve stale DNS records while it refreshes/prefetches the record in the background.
 
-Beacon DNS also "learns" your access patterns to prefetch subsequent queries before the device makes them. For instance, when `github.com` is queried, `avatars.githubusercontent.com` & `github.githubassets.com` usually follow. So when the resolver sees `github.com`, it can prefetch the next two before the device queries for them.
+Beacon DNS also "learns" your query patterns to prefetch subsequent queries before the device makes them. For instance, when `github.com` is queried, `avatars.githubusercontent.com` & `github.githubassets.com` usually follow. So when the resolver sees `github.com`, it can prefetch the next two before the device queries for them.
 
 ```yaml
 cache:
@@ -65,7 +65,7 @@ cache:
   serve_stale:
     for: 5m
     with_ttl: 15s
-  access_patterns:
+  query_patterns:
     follow: true
     look_back: 14d
 ```
@@ -108,7 +108,7 @@ $ websocat ws://mars/api/watch\?clients=phone
 {"hostname":"phone","ip":"<ip>","domain":"spclient.wg.spotify.com","query_type":"A","cached":true,"blocked":false,"block_reason":null,"upstream":null,"response_code":"NOERROR","response_time_ms":0,"prefetched":false,"timestamp":"2024-12-09T21:06:05.08479734Z"}
 ```
 
-The querylog allows us to generate statistics and compute the access patterns:
+The querylog allows us to generate statistics and compute the query patterns:
 
 ```console
 $ curl -s http://mars/api/stats/devices?last=24h | jq
