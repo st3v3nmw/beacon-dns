@@ -61,18 +61,18 @@ func NewDB() (err error) {
 }
 
 type QueryLog struct {
-	Hostname       string    `json:"hostname"`
-	IP             string    `json:"ip"`
-	Domain         string    `json:"domain"`
-	QueryType      string    `json:"query_type"`
-	Cached         bool      `json:"cached"`
-	Blocked        bool      `json:"blocked"`
-	BlockReason    *string   `json:"block_reason"`
-	Upstream       *string   `json:"upstream"`
-	ResponseCode   string    `json:"response_code"`
-	ResponseTimeMs int       `json:"response_time_ms"`
-	Prefetched     bool      `json:"prefetched"`
-	Timestamp      time.Time `json:"timestamp"`
+	Hostname     string    `json:"hostname"`
+	IP           string    `json:"ip"`
+	Domain       string    `json:"domain"`
+	QueryType    string    `json:"query_type"`
+	Cached       bool      `json:"cached"`
+	Blocked      bool      `json:"blocked"`
+	BlockReason  *string   `json:"block_reason"`
+	Upstream     *string   `json:"upstream"`
+	ResponseCode string    `json:"response_code"`
+	ResponseTime int       `json:"response_time"`
+	Prefetched   bool      `json:"prefetched"`
+	Timestamp    time.Time `json:"timestamp"`
 }
 
 type QueryLogger struct {
@@ -141,7 +141,7 @@ func (ql *QueryLogger) flush() {
 		INSERT INTO queries (
 			hostname, ip, domain, query_type,
 			cached, blocked, block_reason, upstream,
-			response_code, response_time_ms, prefetched, timestamp
+			response_code, response_time, prefetched, timestamp
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
 		)
@@ -157,7 +157,7 @@ func (ql *QueryLogger) flush() {
 		_, err := stmt.Exec(
 			q.Hostname, q.IP, q.Domain, q.QueryType,
 			q.Cached, q.Blocked, q.BlockReason, q.Upstream,
-			q.ResponseCode, q.ResponseTimeMs, q.Prefetched, q.Timestamp,
+			q.ResponseCode, q.ResponseTime, q.Prefetched, q.Timestamp,
 		)
 		if err != nil {
 			slog.Error("Failed to insert query", "error", err)

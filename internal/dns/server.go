@@ -52,18 +52,18 @@ func handleRequest(w dnslib.ResponseWriter, q *dnslib.Msg) {
 		end := time.Now()
 		querylog.QL.Log(
 			&querylog.QueryLog{
-				Hostname:       hostname,
-				IP:             ip,
-				Domain:         strings.TrimSuffix(qn.Name, "."),
-				QueryType:      queryType,
-				Cached:         response.Cached,
-				Blocked:        response.Blocked,
-				BlockReason:    response.BlockReason,
-				Upstream:       response.Upstream,
-				ResponseCode:   dnslib.RcodeToString[response.Msg.Rcode],
-				ResponseTimeMs: int(end.UnixMilli() - start.UnixMilli()),
-				Prefetched:     response.Prefetched,
-				Timestamp:      start.UTC(),
+				Hostname:     hostname,
+				IP:           ip,
+				Domain:       strings.TrimSuffix(qn.Name, "."),
+				QueryType:    queryType,
+				Cached:       response.Cached,
+				Blocked:      response.Blocked,
+				BlockReason:  response.BlockReason,
+				Upstream:     response.Upstream,
+				ResponseCode: dnslib.RcodeToString[response.Msg.Rcode],
+				ResponseTime: int(end.UnixMilli() - start.UnixMilli()),
+				Prefetched:   response.Prefetched,
+				Timestamp:    start.UTC(),
 			},
 		)
 	}

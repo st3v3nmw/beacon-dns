@@ -104,8 +104,8 @@ You can watch the querylog live:
 
 ```console
 $ websocat ws://mars/api/watch\?clients=phone
-{"hostname":"phone","ip":"<ip>","domain":"spclient.wg.spotify.com","query_type":"A","cached":false,"blocked":false,"block_reason":null,"upstream":"1.1.1.1","response_code":"NOERROR","response_time_ms":1,"prefetched":false,"timestamp":"2024-12-09T21:06:05.067810278Z"}
-{"hostname":"phone","ip":"<ip>","domain":"spclient.wg.spotify.com","query_type":"A","cached":true,"blocked":false,"block_reason":null,"upstream":null,"response_code":"NOERROR","response_time_ms":0,"prefetched":false,"timestamp":"2024-12-09T21:06:05.08479734Z"}
+{"hostname":"phone","ip":"<ip>","domain":"spclient.wg.spotify.com","query_type":"A","cached":false,"blocked":false,"block_reason":null,"upstream":"1.1.1.1","response_code":"NOERROR","response_time":1,"prefetched":false,"timestamp":"2024-12-09T21:06:05.067810278Z"}
+{"hostname":"phone","ip":"<ip>","domain":"spclient.wg.spotify.com","query_type":"A","cached":true,"blocked":false,"block_reason":null,"upstream":null,"response_code":"NOERROR","response_time":0,"prefetched":false,"timestamp":"2024-12-09T21:06:05.08479734Z"}
 ```
 
 The querylog allows us to generate statistics and compute the query patterns:
@@ -123,10 +123,10 @@ $ curl -s http://mars/api/stats/devices?last=24h | jq
     "block_ratio": <%>,
     "prefetched_queries": <n>,
     "prefetched_ratio": <%>,
-    "avg_response_time_ms": <ms>,
-    "avg_forwarded_response_time_ms": <ms>,
-    "min_response_time_ms": <ms>,
-    "max_response_time_ms": <ms>,
+    "typical_response_time": <ms>,
+    "typical_forwarded_response_time": <ms>,
+    "min_response_time": <ms>,
+    "max_response_time": <ms>,
     "query_types": {
       "A": <n>,
       "AAAA": <n>,
