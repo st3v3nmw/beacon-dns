@@ -144,8 +144,8 @@ type DeviceStats struct {
 	PrefetchedRatio              float64        `json:"prefetched_ratio"`
 	TypicalResponseTime          float64        `json:"typical_response_time"`
 	TypicalForwardedResponseTime float64        `json:"typical_forwarded_response_time"`
-	MinResponseTime              int            `json:"min_response_time"`
-	MaxResponseTime              int            `json:"max_response_time"`
+	MinResponseTime              float64        `json:"min_response_time"`
+	MaxResponseTime              float64        `json:"max_response_time"`
 	QueryTypes                   map[string]int `json:"query_types"`
 	BlockReasons                 map[string]int `json:"block_reasons"`
 	Upstreams                    map[string]int `json:"upstreams"`

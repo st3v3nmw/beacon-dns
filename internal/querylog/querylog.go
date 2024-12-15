@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS queries (
 	block_reason VARCHAR(50) NULL,
 	upstream VARCHAR(50) NULL,
 	response_code VARCHAR(255) NOT NULL,
-    response_time INTEGER NOT NULL,
+    response_time REAL NOT NULL,
 	prefetched BOOLEAN NOT NULL,
 	timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -70,7 +70,7 @@ type QueryLog struct {
 	BlockReason  *string   `json:"block_reason"`
 	Upstream     *string   `json:"upstream"`
 	ResponseCode string    `json:"response_code"`
-	ResponseTime int       `json:"response_time"`
+	ResponseTime float64   `json:"response_time"`
 	Prefetched   bool      `json:"prefetched"`
 	Timestamp    time.Time `json:"timestamp"`
 }
