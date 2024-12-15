@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"net"
 	"os"
 	"slices"
 	"strconv"
@@ -189,7 +188,7 @@ type APIConfig struct {
 type ClientLookupConfig struct {
 	Upstream string                   `yaml:"upstream" json:"upstream"`
 	Method   types.ClientLookupMethod `yaml:"method" json:"method"`
-	Clients  map[string]net.IP        `yaml:"clients" json:"clients,omitempty"`
+	Clients  map[string]string        `yaml:"clients" json:"clients,omitempty"`
 }
 
 type GroupConfig struct {

@@ -3,10 +3,10 @@ services:
     container_name: beacon-dns
     image: ghcr.io/st3v3nmw/beacon-dns:latest
     volumes:
-      - ./config:/home/${USER}/beacon
+      - /home/${USER}/beacon-dns:/data
     environment:
-      - BEACON_CONFIG_FILE=/home/${USER}/beacon/config.yml
-      - BEACON_DATA_DIR=/home/${USER}/beacon
+      - BEACON_CONFIG_FILE=/data/config.yml
+      - BEACON_DATA_DIR=/data
     restart: unless-stopped
     privileged: true
     network_mode: host
