@@ -15,7 +15,6 @@ import (
 	"github.com/mroth/weightedrand/v2"
 	"github.com/st3v3nmw/beacon/internal/config"
 	"github.com/st3v3nmw/beacon/internal/types"
-	"golang.org/x/exp/rand"
 )
 
 var (
@@ -238,7 +237,7 @@ func forwardToUpstream(q *dnslib.Msg) (*dnslib.Msg, *string, error) {
 		upstream = upstreamMgr.selectUpstream()
 		serverAddr := fmt.Sprintf("%s:53", upstream.Address)
 
-		c := &dnslib.Client{ReadTimeout: 5 * time.Second}
+		c := &dnslib.Client{ReadTimeout: 3 * time.Second}
 		m, _, err = c.Exchange(q, serverAddr)
 
 		if err == nil {
@@ -247,9 +246,7 @@ func forwardToUpstream(q *dnslib.Msg) (*dnslib.Msg, *string, error) {
 
 		upstream.recordFailure()
 
-		jitter := time.Duration(rand.Intn(1000)) * time.Millisecond
-		backoff := time.Duration(math.Pow(2, float64(attempt)))*time.Second + jitter
-		fmt.Printf("sleeping for %s\n", backoff.String())
+		backoff := time.Duration(math.Pow(2, float64(attempt))) * time.Second
 		time.Sleep(backoff)
 	}
 
@@ -287,11 +284,11 @@ func (u *Upstream) weight() int {
 	defer u.mu.RUnlock()
 
 	if u.LastFailure.IsZero() {
-		return 1.0
+		return 100
 	}
 
-	timeSinceFailure := time.Since(u.LastFailure)
-	return int(10 * math.Max(0.1, math.Exp(-timeSinceFailure.Minutes()/5)))
+	minsSinceFailure := time.Since(u.LastFailure).Seconds() / 60
+	return int(100 * (1.0 - math.Exp(-minsSinceFailure/2)))
 }
 
 func (u *Upstream) recordFailure() {
@@ -320,5 +317,6 @@ func (um *UpstreamManager) selectUpstream() *Upstream {
 	}
 
 	chooser, _ := weightedrand.NewChooser(choices...)
+	fmt.Printf("weights: %v\n", choices)
 	return chooser.Pick()
 }
