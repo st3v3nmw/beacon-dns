@@ -62,7 +62,7 @@ func handleRequest(w dnslib.ResponseWriter, q *dnslib.Msg) {
 				BlockReason:  response.BlockReason,
 				Upstream:     response.Upstream,
 				ResponseCode: dnslib.RcodeToString[response.Msg.Rcode],
-				ResponseTime: float64(end.UnixMicro()-start.UnixMicro()) / 1e3,
+				ResponseTime: float64(end.UnixMicro()-start.UnixMicro()) / 1_000,
 				Prefetched:   response.Prefetched,
 				Timestamp:    start.UTC(),
 			},

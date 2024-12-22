@@ -91,7 +91,7 @@ func GetCacheStats() CacheStats {
 	return CacheStats{
 		Hits:     stats.Hits(),
 		Misses:   stats.Misses(),
-		Ratio:    math.Round(10_000*stats.Ratio()) / 100,
+		Ratio:    math.Round(1_000*stats.Ratio()) / 100,
 		Evicted:  stats.EvictedCount(),
 		Size:     Cache.Size(),
 		Capacity: Cache.Capacity(),

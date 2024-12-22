@@ -12,6 +12,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/maypok86/otter v1.2.3
 	github.com/miekg/dns v1.1.62
+	github.com/mroth/weightedrand/v2 v2.1.0
 )
 
 require (
@@ -26,7 +27,6 @@ require (
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/mroth/weightedrand/v2 v2.1.0 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect

@@ -45,6 +45,8 @@ RUN apk add --no-cache libc6-compat tzdata
 COPY --from=builder /app/beacon /beacon
 COPY --from=builder /app/sqlean/stats.so /extensions/stats.so
 
+ENV BEACON_EXTENSIONS_DIR=/extensions
+
 EXPOSE 80
 EXPOSE 53
 

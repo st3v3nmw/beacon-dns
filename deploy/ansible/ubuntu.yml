@@ -53,13 +53,14 @@
               - 8.8.8.8
 
           cache:
-            capacity: 10000
+            capacity: 1000
             serve_stale:
               for: 5m
               with_ttl: 15s
             query_patterns:
               follow: true
               look_back: 14d
+              limit: N
 
           api:
             port: 80
@@ -86,7 +87,7 @@
               apply_to:
                 - screens
               when:
-                - days: ["mon", "tue", "wed", "thur", "fri"]
+                - days: ["mon", "tue", "wed", "thur", "fri"] # exclude: holidays
                   periods:
                     - start: "09:00"
                       end: "18:00"

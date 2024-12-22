@@ -380,7 +380,7 @@ func Read(filePath string) error {
 		Upstreams: []string{"1.1.1.1", "8.8.8.8"},
 	}
 
-	All.Cache = &CacheConfig{Capacity: 10_000}
+	All.Cache = &CacheConfig{Capacity: 1_000}
 	All.Cache.ServeStale = &CacheServeStaleConfig{
 		For:     DurationValue{5 * time.Minute},
 		WithTTL: DurationValue{15 * time.Second},
