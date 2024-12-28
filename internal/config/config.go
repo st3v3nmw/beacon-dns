@@ -186,9 +186,10 @@ type APIConfig struct {
 }
 
 type ClientLookupConfig struct {
-	Upstream string                   `yaml:"upstream" json:"upstream"`
-	Method   types.ClientLookupMethod `yaml:"method" json:"method"`
-	Clients  map[string]string        `yaml:"clients" json:"clients,omitempty"`
+	Upstream     string                   `yaml:"upstream" json:"upstream"`
+	Method       types.ClientLookupMethod `yaml:"method" json:"method"`
+	Clients      map[string]string        `yaml:"clients" json:"clients,omitempty"`
+	RefreshEvery DurationValue            `yaml:"refresh_every" json:"refresh_every"`
 }
 
 type GroupConfig struct {
@@ -391,6 +392,10 @@ func Read(filePath string) error {
 	}
 
 	All.API = &APIConfig{Port: 80}
+
+	All.ClientLookup = &ClientLookupConfig{
+		RefreshEvery: DurationValue{1 * time.Hour},
+	}
 
 	allDevicesGroup := &GroupConfig{
 		Block: []types.Category{types.CategoryAds, types.CategoryMalware},

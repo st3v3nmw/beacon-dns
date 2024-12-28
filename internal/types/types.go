@@ -1,7 +1,5 @@
 package types
 
-import "sync"
-
 type Action string
 
 const (
@@ -34,43 +32,5 @@ const (
 type ClientLookupMethod string
 
 const (
-	// TODO: Add options for DHCP lease files or other rDNS
-	ClientLookupTailscale ClientLookupMethod = "tailscale"
+	ClientLookupRDNS ClientLookupMethod = "rdns"
 )
-
-type ThreadSafeSlice[T any] struct {
-	sync.RWMutex
-	items []T
-}
-
-func (s *ThreadSafeSlice[T]) Append(item T) {
-	s.Lock()
-	defer s.Unlock()
-	s.items = append(s.items, item)
-}
-
-func (s *ThreadSafeSlice[T]) Len() int {
-	s.RLock()
-	defer s.RUnlock()
-	return len(s.items)
-}
-
-func (s *ThreadSafeSlice[T]) Iterator() <-chan T {
-	ch := make(chan T)
-	go func() {
-		s.RLock()
-		defer s.RUnlock()
-
-		for _, item := range s.items {
-			ch <- item
-		}
-		close(ch)
-	}()
-	return ch
-}
-
-func (s *ThreadSafeSlice[T]) Clear() {
-	s.Lock()
-	defer s.Unlock()
-	s.items = s.items[:0]
-}

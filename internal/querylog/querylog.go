@@ -9,7 +9,7 @@ import (
 
 	"github.com/mattn/go-sqlite3"
 	"github.com/st3v3nmw/beacon/internal/config"
-	"github.com/st3v3nmw/beacon/internal/types"
+	"github.com/st3v3nmw/beacon/pkg/threadsafe"
 )
 
 var (
@@ -77,7 +77,7 @@ type QueryLog struct {
 
 type QueryLogger struct {
 	queryChan chan *QueryLog
-	queue     types.ThreadSafeSlice[*QueryLog]
+	queue     threadsafe.Slice[*QueryLog]
 	wg        sync.WaitGroup
 	shutdown  chan struct{}
 }

@@ -6,22 +6,22 @@ import (
 	"net"
 	"os"
 	"strings"
-	"sync"
 
 	dnslib "github.com/miekg/dns"
 	"github.com/st3v3nmw/beacon/internal/config"
 	"github.com/st3v3nmw/beacon/internal/types"
+	"github.com/st3v3nmw/beacon/pkg/threadsafe"
 )
 
 var (
-	clientMap sync.Map
+	clientMap = threadsafe.NewExpiryMap[string, string]()
 )
 
 func lookupHostname(ip net.IP) string {
 	ipStr := ip.String()
-	hostname, ok := clientMap.Load(ipStr)
+	hostname, ok := clientMap.Get(ipStr)
 	if ok {
-		return hostname.(string)
+		return hostname
 	}
 
 	if h, ok := config.All.ClientLookup.Clients[ipStr]; ok {
@@ -33,15 +33,15 @@ func lookupHostname(ip net.IP) string {
 	} else {
 		method := config.All.ClientLookup.Method
 		switch method {
-		case types.ClientLookupTailscale:
-			hostname = lookupHostnameOnTailscale(ipStr)
+		case types.ClientLookupRDNS:
+			hostname = reverseDNSLookup(ipStr)
 		default:
 			hostname = ipStr
 		}
 	}
 
-	clientMap.Store(ipStr, hostname)
-	return hostname.(string)
+	clientMap.Set(ipStr, hostname, config.All.ClientLookup.RefreshEvery.Duration)
+	return hostname
 }
 
 func lookupLocalHostname(ip string) string {
@@ -52,12 +52,6 @@ func lookupLocalHostname(ip string) string {
 	}
 
 	return hostname
-}
-
-func lookupHostnameOnTailscale(ip string) string {
-	// Tailscale results look like: <hostname>.<tailnet-name>.ts.net.
-	hostname := reverseDNSLookup(ip)
-	return strings.Split(hostname, ".")[0]
 }
 
 func reverseDNSLookup(ip string) string {
@@ -79,6 +73,7 @@ func reverseDNSLookup(ip string) string {
 		return ip
 	}
 
+	// Results look like <hostname>.<tailnet-name>.ts.net. or <hostname>.
 	ans := m.Answer[0].(*dnslib.PTR)
-	return ans.Ptr
+	return strings.Split(ans.Ptr, ".")[0]
 }

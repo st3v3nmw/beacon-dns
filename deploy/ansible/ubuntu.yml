@@ -67,7 +67,7 @@
 
           client_lookup:
             upstream: 100.100.100.100
-            method: tailscale
+            method: rdns
 
           groups:
             all:
