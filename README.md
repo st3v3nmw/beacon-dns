@@ -78,6 +78,7 @@ Supports looking up of the client's hostname either using reverse DNS:
 client_lookup:
   upstream: 100.100.100.100 # your router's IP or tailscale's MagicDNS IP
   method: rdns
+  refresh_after: 1h
 ```
 
 Or hardcoded based on the static IPs configured on your router:

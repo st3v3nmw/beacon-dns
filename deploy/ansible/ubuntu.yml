@@ -68,6 +68,7 @@
           client_lookup:
             upstream: 100.100.100.100
             method: rdns
+            refresh_after: 1h
 
           groups:
             all:

@@ -40,7 +40,7 @@ func lookupHostname(ip net.IP) string {
 		}
 	}
 
-	clientMap.Set(ipStr, hostname, config.All.ClientLookup.RefreshEvery.Duration)
+	clientMap.Set(ipStr, hostname, config.All.ClientLookup.RefreshAfter.Duration)
 	return hostname
 }
 
