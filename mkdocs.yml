@@ -31,6 +31,9 @@ theme:
 
 nav:
   - Index: index.md
+  - Installation: installation.md
+  - Configuration: config.md
+  - API: api.md
 
 plugins:
   - search

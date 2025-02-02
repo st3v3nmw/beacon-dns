@@ -8,173 +8,27 @@ A DNS resolver with customizable & schedulable filtering for malware, trackers, 
 
 ## Features
 
-### Blocking
+- **Blocking**
+    - Supports blocking of ads, malware, adult content, dating & social media sites, video streaming platforms, and [other content](https://github.com/st3v3nmw/beacon-dns/blob/main/internal/config/sources.go)
+    - Blocking can be done network-wide or per device group
+    - Blocking can also be scheduled so that certain content is only blocked at certain times
+- **Caching**
+    - Supports caching of DNS records for up to the record's TTL which speeds up DNS lookups
+    - Supports serving stale DNS records while the record is refreshed in the background
+- **Prefetching**
+    - "Learns" your query patterns to prefetch subsequent queries before the device makes them
+- **Client Lookup**
+    - Supports looking up of the client's hostname
+- **Statistics**
+    - Allows you view statistics per device over a given period of time
+- **API**
+    - Allows you to get statistics
+    - Allows you to watch queries live as they're being made
+    - Allows you to get the current config
 
-Supports blocking of ads, malware, adult content, dating & social media sites, video streaming platforms, and [other content](https://github.com/st3v3nmw/beacon-dns/blob/main/internal/config/sources.go).
+## Getting Started
 
-Blocking can be done network-wide or per device group:
-
-```yaml
-groups:
-  # not specifying devices blocks on the entire network
-  all:
-    block:
-      - ads
-      - malware
-      - adult
-
-  screens:
-    devices:
-      - phone
-      - laptop
-      - tv
-```
-
-Blocking can also be scheduled so that certain content is only blocked at certain times:
-
-```yaml
-schedules:
-  bedtime:
-    apply_to:
-      - screens
-    when:
-      - days: ["sun", "mon", "tue", "wed", "thur", "fri", "sat"]
-        periods:
-        - start: "22:00"
-          end: "06:00"
-    block:
-      - social-media
-      - video-streaming
-      - gaming
-      - dating
-```
-
-For now, rDNS queries for private IP ranges that reach the resolver are always blocked.
-
-### Caching
-
-Supports caching of DNS records for up to the record's TTL. This can then be served to other devices in the network thus speeding up DNS lookups.
-
-But, DNS records on the internet use [ridicuously low TTLs](https://blog.apnic.net/2019/11/12/stop-using-ridiculously-low-dns-ttls/). The resolver can be configured to serve stale DNS records while it refreshes/prefetches the record in the background.
-
-Beacon DNS also "learns" your query patterns to prefetch subsequent queries before the device makes them. For instance, when `github.com` is queried, `avatars.githubusercontent.com` & `github.githubassets.com` usually follow. So when the resolver sees `github.com`, it can prefetch the next two before the device queries for them.
-
-```yaml
-cache:
-  capacity: 1000
-  serve_stale:
-    for: 5m
-    with_ttl: 15s
-  query_patterns:
-    follow: true
-    look_back: 14d
-```
-
-### Client Lookup
-
-Supports looking up of the client's hostname either using reverse DNS:
-
-```yaml
-client_lookup:
-  upstream: 100.100.100.100 # your router's IP or tailscale's MagicDNS IP
-  method: rdns
-  refresh_after: 1h
-```
-
-Or hardcoded based on the static IPs configured on your router:
-
-```yaml
-client_lookup:
-  clients:
-    192.168.0.102: laptop
-    192.168.0.103: phone
-```
-
-### Statistics
-
-Beacon DNS stores your queries for a configured retention period:
-
-```yaml
-querylog:
-  enabled: true
-  log_clients: true
-  retention: 90d
-```
-
-You can watch the querylog live:
-
-```console
-$ websocat ws://<ip>/api/watch\?clients=phone
-{"hostname":"phone","ip":"<ip>","domain":"spclient.wg.spotify.com","query_type":"A","cached":false,"blocked":false,"block_reason":null,"upstream":"1.1.1.1","response_code":"NOERROR","response_time":1,"prefetched":false,"timestamp":"2024-12-09T21:06:05.067810278Z"}
-{"hostname":"phone","ip":"<ip>","domain":"spclient.wg.spotify.com","query_type":"A","cached":true,"blocked":false,"block_reason":null,"upstream":null,"response_code":"NOERROR","response_time":0,"prefetched":false,"timestamp":"2024-12-09T21:06:05.08479734Z"}
-```
-
-The querylog allows us to generate statistics and compute the query patterns:
-
-```console
-$ curl -s http://<ip>/api/stats/devices?last=24h | jq
-[
- {
-    "client": "phone",
-    "total_queries": <n>,
-    "unique_domains": <n>,
-    "cached_queries": <n>,
-    "cache_hit_ratio": <%>,
-    "blocked_queries": <n>,
-    "block_ratio": <%>,
-    "prefetched_queries": <n>,
-    "prefetched_ratio": <%>,
-    "typical_response_time": <ms>,
-    "typical_forwarded_response_time": <ms>,
-    "min_response_time": <ms>,
-    "max_response_time": <ms>,
-    "query_types": {
-      "A": <n>,
-      "AAAA": <n>,
-      "HTTPS": <n>
-    },
-    "block_reasons": {
-      "ads": <n>,
-      "gaming": <n>,
-      "social-media": <n>,
-      "video-streaming": <n>
-    },
-    "upstreams": {
-      "1.1.1.1": <n>
-    },
-    "resolved_domains": {
-      "apresolve.spotify.com": <n>,
-      "spclient.wg.spotify.com": <n>,
-      ...
-    },
-    "blocked_domains": {
-      "app-measurement.com": <n>,
-      "incoming.telemetry.mozilla.org": <n>,
-      ...
-    },
-    "response_codes": {
-      "NOERROR": <n>,
-      "NXDOMAIN": <n>,
-      "REFUSED": <n>
-    },
-    "ips": {
-      "<ip>": <n>
-    }
- }
-]
-```
-
-### TODO
-
-- [ ] [CLI Interface](https://github.com/st3v3nmw/beaconctl)
-- [ ] [Documentation website](https://www.beacondns.org/)
-- [ ] Split DNS
-- [ ] DHCP Support
-- [ ] Call upstream resolvers over:
-  - [ ] DNS over TLS (DoT)
-  - [ ] DNS over HTTPS (DoH)
-- [ ] Safe Search
-- [ ] DNSSEC Validation
+Go to [this page](https://www.stephenmwangi.com/beacon-dns/installation) to install and configure Beacon DNS.
 
 ## Credits
 
