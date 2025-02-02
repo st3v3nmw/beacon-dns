@@ -38,3 +38,4 @@ config.yaml
 
 # Docs
 .venv/
+site/
