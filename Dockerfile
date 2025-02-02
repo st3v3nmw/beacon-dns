@@ -10,12 +10,12 @@ LABEL\
 	org.opencontainers.image.authors="Stephen Mwangi <mail@stephenmwangi.com>" \
 	org.opencontainers.image.created=$BUILD_DATE \
 	org.opencontainers.image.description="A DNS resolver with customizable & schedulable filtering for malware, trackers, ads, and other unwanted content" \
-	org.opencontainers.image.documentation="https://www.beacondns.org" \
+	org.opencontainers.image.documentation="https://www.stephenmwangi.com/beacon-dns/" \
 	org.opencontainers.image.licenses="MIT" \
 	org.opencontainers.image.revision=$COMMIT_REF \
 	org.opencontainers.image.source="https://github.com/st3v3nmw/beacon-dns" \
 	org.opencontainers.image.title="Beacon DNS" \
-	org.opencontainers.image.url="https://www.beacondns.org" \
+	org.opencontainers.image.url="https://www.stephenmwangi.com/beacon-dns/" \
 	org.opencontainers.image.vendor="Beacon DNS" \
 	org.opencontainers.image.version=$VERSION
 
